@@ -1,0 +1,8 @@
+{
+  "resolution": "main",
+  "tree": {
+    "src": "https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/d70c92fedde5513a7afa58bc7880dcaabd2c3d91/gulp-html-replace/gulp-html-replace.d.ts",
+    "raw": "registry:dt/gulp-html-replace#1.5.5+20160125183154",
+    "typings": "https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/d70c92fedde5513a7afa58bc7880dcaabd2c3d91/gulp-html-replace/gulp-html-replace.d.ts"
+  }
+}

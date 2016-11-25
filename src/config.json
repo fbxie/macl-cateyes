@@ -1,0 +1,9 @@
+{
+    "URL":{
+        "DICOM":"/service/fileRes/dcmJson?listId=${668e1ab0a540451c9d85a864afb62ef2}",
+        "IMAGE":"/upload/api/1.0.0/file/acquisition/${46f27325b62793aa776e3dd8b85a8367}"
+    },
+    "CACHE":true,
+    "ANIMATE_TIME":500,
+    "TIMERUN_COUNT":5
+}

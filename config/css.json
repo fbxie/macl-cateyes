@@ -1,0 +1,8 @@
+{
+    "list":{
+        "reset":"./node_modules/normalize.css/normalize.css"
+    },
+    "libs":[
+        ["reset"]
+    ]
+}
