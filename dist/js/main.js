@@ -5,7 +5,7 @@ fetch = 'default' in fetch ? fetch['default'] : fetch;
 Emitter = 'default' in Emitter ? Emitter['default'] : Emitter;
 PIXI = 'default' in PIXI ? PIXI['default'] : PIXI;
 
-var URL = {"DICOM":"/service/fileRes/dcmJson?listId=${668e1ab0a540451c9d85a864afb62ef2}","IMAGE":"/upload/api/1.0.0/file/acquisition/${46f27325b62793aa776e3dd8b85a8367}"};
+var URL = {"DICOM":"/service/fileRes/dcmJson?listId=${f355c24988bc460fa67073c85d508f1e}","IMAGE":"/upload/api/1.0.0/file/acquisition/${46f27325b62793aa776e3dd8b85a8367}"};
 var CACHE = true;
 var ANIMATE_TIME = 500;
 var TIMERUN_COUNT = 5;
@@ -165,6 +165,12 @@ class ImageFactory {
 
 var ImageFactory$1 = new ImageFactory('image');
 
+PIXI.Texture.Draw = function (cb) {
+    var canvas = document.createElement('canvas');
+    if (typeof cb == 'function') cb(canvas);
+    return PIXI.Texture.fromCanvas(canvas);
+};
+
 let dom_main = $("#main div");
 let renderer = PIXI.autoDetectRenderer(dom_main[0].offsetWidth, dom_main[0].offsetHeight);
 dom_main[0].appendChild(renderer.view);
@@ -174,26 +180,87 @@ class render {
     constructor(image) {
         this._image = image;
         this._stage = new PIXI.Container();
+        this._emitter = new Emitter();
+        this._image_status = {};
+        let self = this;
+        this._imageInfo = image.frames[0];
+        this._id = JSON.parse(this._imageInfo.uri).lossless;
+        let id = this._id;
 
-        let id = JSON.parse(image.frames[0].uri).lossless;
-        // let id = image.frames[0].thumbnailUri;
-        // var texture = PIXI.utils.TextureCache();
-        var image = new PIXI.Sprite.from(ImageFactory$1.get(id));
-        var filter = new PIXI.filters.ColorMatrixFilter();
-        image.filters = [filter];
+        this.imgs = ImageFactory$1.get(id);
 
-        console.dir(filter);
-        // for(var i=0,len = filter.matrix; i< len;i++){
-        //     filter.matrix[i] = 255;
-        // }
-        
-        this._stage.addChild(image);
+        this.imgs.onload = () => {
+            //创建canvas
+            this._canvas = PIXI.Texture.Draw(function (canvas) {
+                canvas.width = self.imgs.width;
+                canvas.height = self.imgs.height;
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(self.imgs, 0, 0);
+                let pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                ctx.putImageData(self.toGray(pixels), 0, 0);
+            });
+
+            let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
+            // let noiseFilter = new PIXI.filters.NoiseFilter(); //图片去燥过滤；
+            // imageSprite.filters = [noiseFilter];
+
+            self.position(imageSprite); //设置图片位置；
+            self._stage.addChild(imageSprite);
+
+            this._image_status[`image-loadover`] = true;
+            this._emitter.emit(`image-loadover`, self._stage);
+        };
+
         return this;
     }
 
     start() {
-        renderer.render(this._stage);
+        if (!this._image_status[`image-loadover`]) {
+            this._emitter.once(`image-loadover`, data => renderer.render(data));
+        } else {
+            renderer.render(this._stage);
+        }
         return this;
+    }
+
+    position(image) {
+        let height = image.height;
+        let width = image.width;
+        image.height = dom_main[0].offsetHeight;
+        image.width = image.height / height * width;
+        image.x = (dom_main[0].offsetWidth - image.width) / 2;
+    }
+    toGray(pixels) {
+        let graies = [];
+
+        let minGray = this._minGray || this._imageInfo.minGray;
+        let grayWidth = this._grayWidth || (this._imageInfo.maxGray - this._imageInfo.minGray);
+
+        let min = (255<<16)+(255<<8)+255;
+
+        for (let i = 0, i_len = pixels.data.length; i < i_len; i += 4) {
+            let gray = (pixels.data[i] << 16) + (pixels.data[i + 1] << 8) + (pixels.data[i + 2]);
+            min = Math.min(min, gray);
+            gray = getGray(gray-1023, minGray, grayWidth);
+            pixels.data[i] = gray;
+            pixels.data[i + 1] = gray;
+            pixels.data[i + 2] = gray;
+        }
+
+        console.dir(min);
+        return pixels;
+
+        function getGray(number, min, width) {
+            let roate = width / 255;
+            if (number < min) {
+                number = 0;
+            } else if (number > (min + width)) {
+                number = 255;
+            } else {
+                number = Math.ceil(number / roate);
+            }
+            return number;
+        }
     }
 
 
@@ -268,8 +335,9 @@ var timerun = {
 class View {
     constructor(series, options) {
         this._series = series;
+        this.options = options;
         this._select = options && options.select || 0;
-
+        this._canvas = document.createElement('canvas');
         this.select(0);
         this.load();
 
@@ -277,7 +345,7 @@ class View {
 
         // setTimeout(function () {
         //     self.play()
-        // }, 2000);
+        // }, 4000);
         return this;
     }
 
@@ -285,6 +353,7 @@ class View {
         if (!index) {
             this._select = index || 0;
         }
+        console.dir(this._series);
         new render(this._series.images[this._select]).start();
         return this;
     }
@@ -293,11 +362,22 @@ class View {
         this._length = this._series.images.length;
         this._renderers = [];
         var self = this;
-
+        let Count = 0;
+        self._process =0;
         timerun.timeChunk(self._series.images, function (image) {
-            self._renderers.push(new render(image));
+            let renderer = new render(image);
+            self._renderers.push(renderer);
+            renderer._emitter.once('image-loadover',function(){
+                Count++;
+                self._process = Count/(self._length-1);
+                console.log('Image loading:%d\%',self._process*100);                
+            });            
         }, config.TIMERUN_COUNT)();
         return this;
+    }
+
+    getProcess(){
+        return this._process;
     }
 
     play() {
@@ -320,11 +400,70 @@ class View {
     }
 }
 
+var Tools = function (){   
+    let dom_tools = document.createElement('div');
+    
+    return dom_tools;
+};
+
+var Aside = function (serieses) {
+
+
+    
+    let dom_aside = document.createElement('div');
+    dom_aside.className = "aside";
+
+    let dom_serieses = document.createElement('div');
+    dom_aside.appendChild(dom_serieses);
+
+    dom_serieses.className = "serieses";
+
+    for(let i = 0 , i_len=serieses.length;i<i_len;i++){
+        dom_serieses.appendChild(new Series(serieses[i])); 
+    }
+
+    dom_aside.appendChild(Tools());
+    console.dir(new Series(serieses[0]));
+    return dom_aside;
+};
+
+class Series {
+    constructor(series) {
+        this._series = series;
+        this.createDom(series.images[0].frames[0].thumbnailUri);
+        return this._DOM;
+    }
+
+    createDom(url) {
+        this._DOM = document.createElement('div');
+        this._DOM.className = "series";
+        // this._DOM.style.position = "relative";
+        // this._DOM.style.margin = "10px 2px";
+        // this._DOM.style["padding"] = "5px 0px";
+        // this._DOM.style["text-align"] = "center";
+        this._DOM.appendChild(this.ImageDom(url));
+    }
+
+    ImageDom(url) {
+        var img = document.createElement('img');
+        img.src = ImageFactory$1.get(url).src;
+        img.width = 80;
+        img.height = 80;
+        return img;
+    }
+}
+
 let handler_1234 = new Handler();
 
-handler_1234.on('onload',function (data){
-    new View(data.study.serieses[0]);
+handler_1234.on('onload', function (data) {
+    if (data) {
+        $("#aside")[0].appendChild(Aside(data.study.serieses));
+        new View(data.study.serieses[0]);
+
+    }
 });
+
+
 // export default handler_1234;
 
 
@@ -348,4 +487,4 @@ handler_1234.on('onload',function (data){
 
 }(fetch,Emitter,PIXI));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7In0=

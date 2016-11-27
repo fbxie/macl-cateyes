@@ -78,9 +78,12 @@ gulp.task('js', cb => {
                 jQuery: 'jQuery',
                 PIXI: 'PIXI',
                 fetch: 'fetch',
-                Emitter:'Emitter'
+                Emitter: 'Emitter'
             }
         }))
+        .on('error',function(err){
+            console.dir(err);
+        })
         .pipe(_$.sourcemaps.write())
         // .pipe(_$.uglify())
         .pipe(gulp.dest('./dist'))
@@ -128,17 +131,19 @@ gulp.task('serve', cb => {
                 baseDir: './dist',
                 ext: '.html'
             }), proxy('/service/', {
-                target: "http://192.168.0.148:10003/",
+                // target: "http://192.168.0.148:10003/",
+                target: "http://www.peaimage.com/",
                 changeOrigin: true
             }), proxy('/upload/', {
-                target: "http://192.168.0.148:10003/",
+                // target: "http://192.168.0.148:10003/",
+                target: "http://www.peaimage.com/",
                 changeOrigin: true
             })]
         }
     });
     gulp.watch("src/assert/css/**/*.styl", ['css']);
     gulp.watch("src/js/**/*.js", ['js']);
-     gulp.watch("src/**/*.json", ['js']);
+    gulp.watch("src/**/*.json", ['js']);
     gulp.watch("src/js/**/*.ts", ['js']);
     gulp.watch("src/layout/**/*.html", ['html']);
     gulp.watch("dist/**/*.html").on("change", browserSync.reload);

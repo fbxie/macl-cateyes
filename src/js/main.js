@@ -1,10 +1,18 @@
 import Handler from './handler';
 import View from './components/view';
+import Aside from './aside';
+
 let handler_1234 = new Handler();
 
-handler_1234.on('onload',function (data){
-    new View(data.study.serieses[0]);
+handler_1234.on('onload', function (data) {
+    if (data) {
+        $("#aside")[0].appendChild(Aside(data.study.serieses));
+        new View(data.study.serieses[0]);
+
+    }
 });
+
+
 // export default handler_1234;
 
 
@@ -25,4 +33,3 @@ handler_1234.on('onload',function (data){
 
 //Tell the `renderer` to `render` the `stage`
 // renderer.render(stage);
-
