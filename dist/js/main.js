@@ -317,17 +317,22 @@ class render {
         let Filter = new PIXI.Filter();
         console.dir(Filter);
         console.log(Filter.vertexSrc);
+        console.log(Filter.fragmentSrc);
         Filter.vertexSrc = [
             "attribute vec2 aVertexPosition;",
             "attribute vec2 aTextureCoord;",
+            "attribute vec4 aColor;",
             "uniform mat3 projectionMatrix;",
             "uniform mat3 filterMatrix;",
             "varying vec2 vTextureCoord;",
             "varying vec2 vFilterCoord;",
-            "void main(void) {",
+            "varying vec4 vColor;",
+            "void main(void) {",            
             "    gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
+            "    vColor = aColor ;",
             "    vFilterCoord = (filterMatrix * vec3(aTextureCoord, 1.0)).xy;",
             "    vTextureCoord = aTextureCoord;",
+            // "    vColor = vec4(1.0, 1.0, 1.0, 1.0);",
             "}"
         ].join('\n');
 
@@ -356,21 +361,28 @@ class render {
         //     "}\n"
         // ].join('');
 
-        let fragmentSrc = [
-            "precision mediump float;",
-            "varying vec4 vColor;\n",
+        Filter.fragmentSrc = [
             "varying vec2 vTextureCoord;",
-            "uniform sampler2D uSampler;\n",
-            "uniform float width;\n",
-            "uniform float min;\n",
-            "uniform float max;\n",
-            "void main(void){\n",
-            "   vec4 c = texture2D(uSampler, vTextureCoord);\n",
-            "   gl_FragColor =c;\n",
-            // "   gl_FragColor =vColor;\n",
-            "\n",
-            "}\n"
-        ].join('');
+            "varying vec2 vFilterCoord;",
+            "varying vec4 vColor;",            
+            "uniform sampler2D uSampler;",
+            "uniform sampler2D filterSampler;",
+            "void main(void) {",
+            "    vec4 masky = texture2D(filterSampler, vFilterCoord);",
+            "    vec4 sample = texture2D(uSampler, vTextureCoord);",
+            "    vec4 color;",
+            "    if (mod(vFilterCoord.x, 1.0) > 0.5) {",
+            "        color = vec4(1.0, 0.0, 0.0, 1.0);",
+            "    } else {",
+            "        color = vec4(0.0, 1.0, 0.0, 1.0);",
+            "    }",
+            // "    gl_FragColor = mix(sample, masky, 0.5);",
+            // "    gl_FragColor *= sample.a;",
+            "    gl_FragColor = vColor;",
+            "    gl_FragColor.r = 1.0*0.1;",
+            // "   gl_FragColor.a = 0.5;",
+            "}"
+        ].join('\n');
         // console.log(vertexSrc);
         // console.log(fragmentSrc);
 
@@ -630,4 +642,4 @@ handler_1234.on('onload', function (data) {
 
 }(fetch,Emitter,PIXI));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==
