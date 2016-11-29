@@ -228,19 +228,19 @@ class render {
             //     canvas.height = self.imgs.height;
             //     let ctx = canvas.getContext('2d');
             //     ctx.drawImage(self.imgs, 0, 0);
-            //     // let pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            //     // ctx.putImageData(self.toGray(pixels), 0, 0);
+            //     let pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            //     ctx.putImageData(self.toGray(pixels), 0, 0);
             // });
 
             // let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
 
             let imageSprite = new PIXI.Sprite.from(self.imgs);
- 
 
-            // let myFilter = new PIXI.AbstractFilter('', fragmentSrc, uniforms);
 
+            let Filter = new PIXI.filters.ColorMatrixFilter();
+            console.dir(Filter);
             let myFilter = self.GrayFilterGLSL();
-
+           
 
             imageSprite.filters = [myFilter];
 
@@ -276,13 +276,23 @@ class render {
 
         let minGray = this._minGray || this._imageInfo.minGray;
         let grayWidth = this._grayWidth || (this._imageInfo.maxGray - this._imageInfo.minGray);
+        let min = minGray;
+        minGray = minGray < 0 ? Math.abs(minGray) : 0;
 
-        let min = (255 << 16) + (255 << 8) + 255;
+        let count = 0;
+        min = 50;
+        let width = 350;
 
         for (let i = 0, i_len = pixels.data.length; i < i_len; i += 4) {
             let gray = (pixels.data[i] << 16) + (pixels.data[i + 1] << 8) + (pixels.data[i + 2]);
-            min = Math.min(min, gray);
-            gray = getGray(gray - 1023, minGray, grayWidth);
+            gray = gray - minGray;
+            if (gray != 0 && count < 20) {
+                console.log(gray);
+                count++;
+            }
+            gray -= 2047;
+            gray = getGray(gray, 50, 350);
+
             pixels.data[i] = gray;
             pixels.data[i + 1] = gray;
             pixels.data[i + 2] = gray;
@@ -290,42 +300,73 @@ class render {
 
         return pixels;
 
-        function getGray(number, min, width) {
+        function getGray(gray, min, width) {
             let roate = width / 255;
-            if (number < min) {
-                number = 0;
-            } else if (number > (min + width)) {
-                number = 255;
-            } else {
-                number = Math.ceil(number / roate);
+            gray = Math.ceil((gray - min + width / 2) / roate);
+
+            if (gray < 0) {
+                gray = 0;
+            } else if (gray > 255) {
+                gray = 255;
             }
-            return number;
+            return gray;
         }
     }
 
     GrayFilterGLSL() {
+        let vertexSrc = [
+            "attribute vec2 aVertexPosition;",
+            "attribute vec2 aTextureCoord;",
+            
+            // "uniform mat3 projectionMatrix;",
+            "varying vec2 vTextureCoord;",
+            "void main() {",
+                "gl_Position = vec4((vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
+                
+                // "gl_Position = aVertexPosition;",
+                "vTextureCoord = aTextureCoord;",
+                // "vColor = aColor;",
+            "}\n"
+        ].join('');
+        // let fragmentSrc = [
+        //     "precision mediump float;",
+        //     "varying vec2 vTextureCoord;\n",
+        //     "uniform sampler2D uSampler;\n",
+        //     "uniform float width;\n",
+        //     "uniform float min;\n",
+        //     "uniform float max;\n",
+        //     "void main(void){\n",
+        //     "   vec4 c = texture2D(uSampler, vTextureCoord);\n",
+        //     "   c.r *= 255.0;c.g *= 255.0; c.b *= 255.0;\n",
+        //     "   float gray = (c.r * 65536.0) + (c.g * 256.0) + (c.b);\n",
+        //     "   gray = gray - 2047.0;\n",
+        //     "   gray = gray - min + width / 2.0;\n",
+        //     "   gray = ceil(gray / width * 255.0);\n",
+        //     // "   gray = gray>0.0?gray:0.0;\n",
+        //     // "   gray = gray<1.0?gray:1.0;\n",
+        //     // "   gl_FragColor.rgb = mix(c.rgb,vec3(gray/255.0), 1.0);\n",
+        //     "   gl_FragColor.r = gray/255.0;\n",
+        //     "   gl_FragColor.g = gray/255.0;\n",
+        //     "   gl_FragColor.b = gray/255.0;\n",
+        //     "}\n"
+        // ].join('');
+
         let fragmentSrc = [
             "precision mediump float;",
-            "varying vec2 vTextureCoord;\n",
+            "varying vec4 vColor;\n",
+            "varying vec2 vTextureCoord;",
             "uniform sampler2D uSampler;\n",
             "uniform float width;\n",
             "uniform float min;\n",
             "uniform float max;\n",
             "void main(void){\n",
             "   vec4 c = texture2D(uSampler, vTextureCoord);\n",
-            "   c.r *= 255.0;c.g *= 255.0; c.b *= 255.0;\n",
-            "   float gray = (c.r * 65536.0) + (c.g * 256.0) + (c.b);\n",            
-            "   gray = gray - min + width / 2.0;\n",
-            "   gray = gray / width;\n",
-            "   gray = (gray<1.0)?gray:1.0;\n",
-            "   gray = (gray>0.0)?gray:0.0;\n",
-            // "   gray =(gray>=0.0 && gray<=1.0)?gray:0.0;\n",
-            "   gl_FragColor.r = gray;\n",
-            "   gl_FragColor.g = gray;\n",
-            "   gl_FragColor.b = gray;\n",
+            "   gl_FragColor =c;\n",
+            // "   gl_FragColor =vColor;\n",
+            "\n",
             "}\n"
         ].join('');
-
+        console.log(vertexSrc);
         console.log(fragmentSrc);
 
 
@@ -334,29 +375,30 @@ class render {
         let maxGray = this._maxGray || this._imageInfo.maxGray;
 
         let grayWidth = this._grayWidth || (this._imageInfo.maxGray - this._imageInfo.minGray);
-        
-        minGray =50 ;
+
+        minGray = 50;
         grayWidth = 350;
-        
+
         let uniforms = {};
 
-        uniforms.width = {
+        uniforms["width"] = {
             type: 'f',
             value: grayWidth
         };
 
 
-        uniforms.min = {
+        uniforms["min"] = {
             type: 'f',
             value: minGray
         };
 
-        uniforms.max = {
+        uniforms["max"] = {
             type: 'f',
             value: maxGray
         };
+        
 
-        return new PIXI.AbstractFilter('', fragmentSrc, uniforms);
+        return new PIXI.AbstractFilter(vertexSrc,fragmentSrc , uniforms);
     }
 
 
@@ -583,4 +625,4 @@ handler_1234.on('onload', function (data) {
 
 }(fetch,Emitter,PIXI));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7In0=
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7In0=
