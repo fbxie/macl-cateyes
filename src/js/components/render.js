@@ -40,7 +40,7 @@ class render {
 
 
             let Filter = new PIXI.filters.ColorMatrixFilter();
-            console.dir(Filter);
+            console.dir(imageSprite);
             let myFilter = self.GrayFilterGLSL()
 
 
@@ -120,6 +120,7 @@ class render {
         console.dir(Filter);
         console.log(Filter.vertexSrc);
         console.log(Filter.fragmentSrc);
+        Filter.padding = 0.0;
         Filter.vertexSrc = [
             "attribute vec2 aVertexPosition;",
             "attribute vec2 aTextureCoord;",
@@ -130,11 +131,21 @@ class render {
             "varying vec2 vFilterCoord;",
             "varying vec4 vColor;",
             "void main(void) {",            
-            "    gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
-            "    vColor = aColor ;",
-            "    vFilterCoord = (filterMatrix * vec3(aTextureCoord, 1.0)).xy;",
-            "    vTextureCoord = aTextureCoord;",
-            // "    vColor = vec4(1.0, 1.0, 1.0, 1.0);",
+            "   gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
+            // "    vColor = aColor ;",
+            "   vFilterCoord = (filterMatrix * vec3(aTextureCoord, 1.0)).xy;",
+            "   vTextureCoord = aTextureCoord;",
+            "   vec4 c = aColor;",
+            "   c.r *= 255.0;c.g *= 255.0; c.b *= 255.0;\n",
+            "   float gray = (c.r * 65536.0) + (c.g * 256.0) + (c.b);\n",
+            "   gray = gray - 2047.0;\n",
+            "   gray = gray - 50.0 + 350.0 / 2.0;\n",
+            "   gray = ceil(gray / 350.0 * 255.0);\n",
+            "   vColor = vec4(aColor);",
+            // "   vColor.r = 255.0/255.0;",
+            // // "   vColor.g = gray/255.0;",
+            // "   vColor.b = gray/255.0;",
+            
             "}"
         ].join('\n');
 
@@ -178,10 +189,11 @@ class render {
             "    } else {",
             "        color = vec4(0.0, 1.0, 0.0, 1.0);",
             "    }",
-            // "    gl_FragColor = mix(sample, masky, 0.5);",
-            // "    gl_FragColor *= sample.a;",
             "    gl_FragColor = vColor;",
-            "    gl_FragColor.r = 1.0*0.1;",
+            // "    gl_FragColor = mix(masky , vColor, 0.5);",
+            "    gl_FragColor *= sample.a;",
+            // "    gl_FragColor.r = vColor.r;",
+            // "    gl_FragColor.r = 1.0*0.1;",
             // "   gl_FragColor.a = 0.5;",
             "}"
         ].join('\n');

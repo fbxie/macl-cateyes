@@ -33,20 +33,20 @@ export default class View {
         this._renderers = [];
         var self = this;
         let Count = 0;
-        self._process =0;
+        self._process = 0;
         timerun.timeChunk(self._series.images, function (image) {
             let renderer = new render(image);
             self._renderers.push(renderer);
-            renderer._emitter.once('image-loadover',function(){
+            renderer._emitter.once('image-loadover', function () {
                 Count++;
-                self._process = Count/(self._length-1);
-                console.log('Image loading:%d\%',self._process*100);                
-            });            
+                self._process = Count / self._length;
+                console.log('Image loading:%d\%', self._process * 100);
+            });
         }, config.TIMERUN_COUNT)();
         return this;
     }
 
-    getProcess(){
+    getProcess() {
         return this._process;
     }
 
