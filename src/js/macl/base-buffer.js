@@ -12,7 +12,7 @@ export function initBuffers(gl, vertices, colors) {
     // Now create an array of vertices for the square. Note that the Z
     // coordinate is always 0 here.
 
-    vertices = [
+    vertices = vertices||[
         1.0, 1.0, 0.0, -1.0, 1.0, 0.0,
         1.0, -1.0, 0.0, -1.0, -1.0, 0.0
     ];
@@ -23,7 +23,7 @@ export function initBuffers(gl, vertices, colors) {
 
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-    var colors = [
+    var colors =colors|| [
         1.0, 1.0, 1.0, 1.0, // white
         1.0, 0.0, 0.0, 1.0, // red
         0.0, 1.0, 0.0, 1.0, // green

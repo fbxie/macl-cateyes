@@ -45,16 +45,27 @@ class render {
             let vertiecs = [];
             let colors = [];
             let data = pixels.data;
-            for(let i = 0 , I_len = pixels.data.length; i<I_len;i+=4){
+            for(var i=0; i<16;i +=4){
+                data[i] = i;
+            }
+
+            for(let i = 0 , I_len = data.length; i<I_len;i+=4){
                 colors.push(data[i]/255,data[i+1]/255,data[i+2]/255,1.0);
             }
 
-            for(let i=0,I_len = this.imgs.width;i<I_len;i++){
-                for(let j=0,J_len =this.imgs.height;j<J_len;j++){
-                    vertiecs.push(i,j,0);
+            let width =2||this.imgs.width;
+            let height =2||this.imgs.height;
+            i =0-width;
+            
+            for(;i<=width;i+=2){
+                let j = 0-height;
+                for(;j<=height;j+=2){
+                    
+                    vertiecs.push(i/width,j/height,0);   
+                    
                 }
             }
-
+            console.dir(vertiecs);
             this.vertiecs = vertiecs;
             this.colors = colors;
             coreGL.start("glcanvas",vertiecs,colors);
