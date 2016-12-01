@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="renderer" content="webkit">
@@ -8,15 +9,40 @@
 	<link rel="stylesheet" href="./assert/css/main.css">
 	<title>mac-豌豆影像-猫眼</title>
 </head>
+
 <body>
 	<header id="header"></header>
 	<main>
 		<aside id="aside"></aside>
 		<div id="main">
-			<div></div>
+			<div id="glcanvas"></div>
 		</div>
 	</main>
 </body>
+<!-- Fragment shader program -->
+<script id="shader-fs" type="x-shader/x-fragment">
+      varying lowp vec4 vColor;
+
+      void main(void) {
+        gl_FragColor = vColor;
+      }
+    </script>
+<!-- Vertex shader program -->
+<script id="shader-vs" type="x-shader/x-vertex">
+      attribute vec3 aVertexPosition;
+      attribute vec4 aVertexColor;
+
+      uniform mat4 uMVMatrix;
+      uniform mat4 uPMatrix;
+
+      varying lowp vec4 vColor;
+
+      void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+      }
+    </script>
 <script src="lib/jslib0.js"></script>
 <script src="./js/main.js"></script>
+
 </html>

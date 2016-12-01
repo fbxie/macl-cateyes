@@ -39,7 +39,7 @@ class Series {
     }
 
     ImageDom(url) {
-        var img = document.createElement('img');
+        let img = document.createElement('img');
         img.src = ImageFactory.get(url).src;
         img.width = 80;
         img.height = 80;

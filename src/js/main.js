@@ -2,6 +2,8 @@ import Handler from './handler';
 import View from './components/view';
 import Aside from './aside';
 
+import coreGl from './macl/core-gl.js';
+
 let handler_1234 = new Handler();
 
 handler_1234.on('onload', function (data) {
@@ -33,3 +35,9 @@ handler_1234.on('onload', function (data) {
 
 //Tell the `renderer` to `render` the `stage`
 // renderer.render(stage);
+
+
+
+
+
+export default {};

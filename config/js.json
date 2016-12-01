@@ -3,9 +3,10 @@
         "jquery": "./node_modules/jquery/dist/jquery.min.js",
         "pixi": "./node_modules/pixi.js/dist/pixi.min.js",
         "fetch": "./node_modules/whatwg-fetch/fetch.js",
-        "Emitter":"./node_modules/browser-emitter/Emitter.js"
+        "Emitter":"./node_modules/browser-emitter/Emitter.js",
+        "$M":"./src/assert/js/sylvester.js"
     },
     "libs": [
-        ["fetch","jquery", "pixi","Emitter"]
+        ["fetch","jquery", "pixi","Emitter","$M"]
     ]
 }

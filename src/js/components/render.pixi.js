@@ -1,12 +1,19 @@
+import PIXI from 'PIXI';
 import Emitter from 'Emitter';
 import config from '../../config.json';
 import ImageFactory from './image-factory';
-import coreGL from '../macl/core-gl';
+import './pixi-util';
+
+
+let dom_main = $("#main div");
+let renderer = PIXI.autoDetectRenderer(dom_main[0].offsetWidth, dom_main[0].offsetHeight);
+dom_main[0].appendChild(renderer.view);
 
 class render {
 
     constructor(image) {
         this._image = image;
+        this._stage = new PIXI.Container();
         this._emitter = new Emitter();
         this._image_status = {};
         let self = this;
@@ -29,47 +36,33 @@ class render {
 
             // let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
 
-           
-        };
+            let imageSprite = new PIXI.Sprite.from(self.imgs);
 
-        this.imgs.onload = ()=>{
-            let canvas = document.createElement('canvas');
-            canvas.width = this.imgs.width;
-            canvas.height = this.imgs.height;
 
-            let ctx = canvas.getContext('2d');
+            let Filter = new PIXI.filters.ColorMatrixFilter();
+            console.dir(imageSprite);
+            let myFilter = self.GrayFilterGLSL()
 
-            ctx.drawImage(this.imgs,0,0);
-            let pixels = ctx.getImageData(0,0,canvas.width,canvas.height);
 
-            let vertiecs = [];
-            let colors = [];
-            let data = pixels.data;
-            for(let i = 0 , I_len = pixels.data.length; i<I_len;i+=4){
-                colors.push(data[i]/255,data[i+1]/255,data[i+2]/255,1.0);
-            }
+            imageSprite.filters = [myFilter];
 
-            for(let i=0,I_len = this.imgs.width;i<I_len;i++){
-                for(let j=0,J_len =this.imgs.height;j<J_len;j++){
-                    vertiecs.push(i,j,0);
-                }
-            }
+            self.position(imageSprite); //设置图片位置；
+            self._stage.addChild(imageSprite);
 
-            this.vertiecs = vertiecs;
-            this.colors = colors;
-            coreGL.start("glcanvas",vertiecs,colors);
+            this._image_status[`image-loadover`] = true;
+            this._emitter.emit(`image-loadover`, self._stage);
         };
 
         return this;
     }
 
     start() {
-        // if (!this._image_status[`image-loadover`]) {
-        //     this._emitter.once(`image-loadover`, data => renderer.render(data));
-        // } else {
-        //     renderer.render(this._stage);
-        // }
-        // return this;
+        if (!this._image_status[`image-loadover`]) {
+            this._emitter.once(`image-loadover`, data => renderer.render(data));
+        } else {
+            renderer.render(this._stage);
+        }
+        return this;
     }
 
     position(image) {

@@ -1,9 +1,9 @@
-(function (fetch,Emitter,PIXI) {
+var MACL_CATEYES = (function (fetch,Emitter,window$1) {
 'use strict';
 
 fetch = 'default' in fetch ? fetch['default'] : fetch;
 Emitter = 'default' in Emitter ? Emitter['default'] : Emitter;
-PIXI = 'default' in PIXI ? PIXI['default'] : PIXI;
+window$1 = 'default' in window$1 ? window$1['default'] : window$1;
 
 var URL = {"DICOM":"/service/fileRes/dcmJson?listId=${f355c24988bc460fa67073c85d508f1e}","IMAGE":"/upload/api/1.0.0/file/acquisition/${46f27325b62793aa776e3dd8b85a8367}"};
 var CACHE = true;
@@ -165,53 +165,400 @@ class ImageFactory {
 
 var ImageFactory$1 = new ImageFactory('image');
 
-PIXI.Texture.Draw = function (cb) {
-    var canvas = document.createElement('canvas');
-    if (typeof cb == 'function') cb(canvas);
-    return PIXI.Texture.fromCanvas(canvas);
-};
+function initBuffers(gl, vertices, colors) {
 
+    // Create a buffer for the square's vertices.
 
-PIXI.myGrayFilter = function(uniforms){
-    PIXI.AbstractFilter.call( this );
- 
-    this.passes = [this];
- 
-    // set the uniforms
-    this.uniforms = uniforms;
-    this.fragmentSrc = [
-        "varying vec2 vTextureCoord;\n",
-        "uniform sampler2D uSampler;\n",
-        "uniform float roate;\n",
-        "uniform float min;\n",
-        "uniform float max;\n",
-        "void main(void){\n",
-        "   vec3 c = texture2D(uSampler, vTextureCoord).rgb;\n",
-        "   c.r *= 255.0; c.g *= 255.0; c.b *= 255.0;\n",
-        "   c.r = (c.r * 65536.0) + (c.g * 256.0) + (c.b);\n",
-        "   c.r = (c.r >= min || c.r <= max) ? c.r : 0.0;\n",
-        "   c.r = c.r - min;\n",
-        "   c.r = c.r / roate;\n",
-        "   c.r = (c.r >= 0.0 || c.r <= 255.0) ? gray : 0.0;\n",
-        "   gl_FragColor.r = gray / 255.0;\n",
-        "   gl_FragColor.g = gray / 255.0;\n",
-        "   gl_FragColor.b = gray / 255.0;\n",
-        "}\n"
+    let squareVerticesBuffer = gl.createBuffer();
+
+    // Select the squareVerticesBuffer as the one to apply vertex
+    // operations to from here out.
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
+
+    // Now create an array of vertices for the square. Note that the Z
+    // coordinate is always 0 here.
+
+    vertices = [
+        1.0, 1.0, 0.0, -1.0, 1.0, 0.0,
+        1.0, -1.0, 0.0, -1.0, -1.0, 0.0
     ];
-};
- 
-PIXI.myGrayFilter.prototype = Object.create( PIXI.AbstractFilter.prototype );
-PIXI.myGrayFilter.prototype.constructor = PIXI.myGrayFilter;
 
-let dom_main = $("#main div");
-let renderer = PIXI.autoDetectRenderer(dom_main[0].offsetWidth, dom_main[0].offsetHeight);
-dom_main[0].appendChild(renderer.view);
+    // Now pass the list of vertices into WebGL to build the shape. We
+    // do this by creating a Float32Array from the JavaScript array,
+    // then use it to fill the current vertex buffer.
+
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+    var colors = [
+        1.0, 1.0, 1.0, 1.0, // white
+        1.0, 0.0, 0.0, 1.0, // red
+        0.0, 1.0, 0.0, 1.0, // green
+        0.0, 0.0, 1.0, 1.0 // blue
+    ];
+
+    let squareVerticesColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    return {
+        squareVerticesBuffer,
+        squareVerticesColorBuffer
+    };
+}
+
+function initShaders(gl) {
+
+    let fragmentShader = getShader(gl, "shader-fs");
+    let vertexShader = getShader(gl, "shader-vs");
+
+    // Create the shader program
+
+    let shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    // If creating the shader program failed, alert
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
+    }
+
+    gl.useProgram(shaderProgram);
+
+    let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+
+    let vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+    gl.enableVertexAttribArray(vertexColorAttribute);
+
+
+    return {
+        shaderProgram,
+        vertexPositionAttribute,
+        vertexColorAttribute
+    };
+}
+
+function getShader(gl, id) {
+    let shaderScript = document.getElementById(id);
+    // Didn't find an element with the specified ID; abort.
+
+    if (!shaderScript) {
+        return null;
+    }
+
+    // Walk through the source element's children, building the
+    // shader source string.
+
+    var theSource = "";
+    var currentChild = shaderScript.firstChild;
+
+    while (currentChild) {
+        if (currentChild.nodeType == 3) {
+            theSource += currentChild.textContent;
+        }
+
+        currentChild = currentChild.nextSibling;
+    }
+
+    // Now figure out what type of shader script we have,
+    // based on its MIME type.
+
+    var shader;
+
+    if (shaderScript.type == "x-shader/x-fragment") {
+        shader = gl.createShader(gl.FRAGMENT_SHADER);
+    } else if (shaderScript.type == "x-shader/x-vertex") {
+        shader = gl.createShader(gl.VERTEX_SHADER);
+    } else {
+        return null; // Unknown shader type
+    }
+
+    // Send the source to the shader object
+
+    gl.shaderSource(shader, theSource);
+
+    // Compile the shader program
+
+    gl.compileShader(shader);
+
+    // See if it compiled successfully
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+        return null;
+    }
+
+    return shader;
+}
+
+// augment Sylvester some
+let Matrix = window$1.Matrix||function(){};
+Matrix.Translation = function (v)
+{
+  if (v.elements.length == 2) {
+    var r = Matrix.I(3);
+    r.elements[2][0] = v.elements[0];
+    r.elements[2][1] = v.elements[1];
+    return r;
+  }
+
+  if (v.elements.length == 3) {
+    var r = Matrix.I(4);
+    r.elements[0][3] = v.elements[0];
+    r.elements[1][3] = v.elements[1];
+    r.elements[2][3] = v.elements[2];
+    return r;
+  }
+
+  throw "Invalid length for Translation";
+};
+
+Matrix.prototype.flatten = function ()
+{
+    var result = [];
+    if (this.elements.length == 0)
+        return [];
+
+
+    for (var j = 0; j < this.elements[0].length; j++)
+        for (var i = 0; i < this.elements.length; i++)
+            result.push(this.elements[i][j]);
+    return result;
+};
+
+Matrix.prototype.ensure4x4 = function()
+{
+    if (this.elements.length == 4 &&
+        this.elements[0].length == 4)
+        return this;
+
+    if (this.elements.length > 4 ||
+        this.elements[0].length > 4)
+        return null;
+
+    for (var i = 0; i < this.elements.length; i++) {
+        for (var j = this.elements[i].length; j < 4; j++) {
+            if (i == j)
+                this.elements[i].push(1);
+            else
+                this.elements[i].push(0);
+        }
+    }
+
+    for (var i = this.elements.length; i < 4; i++) {
+        if (i == 0)
+            this.elements.push([1, 0, 0, 0]);
+        else if (i == 1)
+            this.elements.push([0, 1, 0, 0]);
+        else if (i == 2)
+            this.elements.push([0, 0, 1, 0]);
+        else if (i == 3)
+            this.elements.push([0, 0, 0, 1]);
+    }
+
+    return this;
+};
+
+Matrix.prototype.make3x3 = function()
+{
+    if (this.elements.length != 4 ||
+        this.elements[0].length != 4)
+        return null;
+
+    return Matrix.create([[this.elements[0][0], this.elements[0][1], this.elements[0][2]],
+                          [this.elements[1][0], this.elements[1][1], this.elements[1][2]],
+                          [this.elements[2][0], this.elements[2][1], this.elements[2][2]]]);
+};
+
+let Vector = window$1.Vector||function(){};
+
+Vector.prototype.flatten = function ()
+{
+    return this.elements;
+};
+
+//
+// gluPerspective
+//
+function makePerspective(fovy, aspect, znear, zfar)
+{
+    var ymax = znear * Math.tan(fovy * Math.PI / 360.0);
+    var ymin = -ymax;
+    var xmin = ymin * aspect;
+    var xmax = ymax * aspect;
+
+    return makeFrustum(xmin, xmax, ymin, ymax, znear, zfar);
+}
+
+//
+// glFrustum
+//
+function makeFrustum(left, right,
+                     bottom, top,
+                     znear, zfar)
+{
+    var X = 2*znear/(right-left);
+    var Y = 2*znear/(top-bottom);
+    var A = (right+left)/(right-left);
+    var B = (top+bottom)/(top-bottom);
+    var C = -(zfar+znear)/(zfar-znear);
+    var D = -2*zfar*znear/(zfar-znear);
+
+    return $M([[X, 0, A, 0],
+               [0, Y, B, 0],
+               [0, 0, C, D],
+               [0, 0, -1, 0]]);
+}
+
+//
+// Matrix utility functions
+//
+
+let mvMatrix;
+
+function loadIdentity() {
+    mvMatrix = Matrix.I(4);
+}
+
+function multMatrix(m) {
+    mvMatrix = mvMatrix.x(m);
+}
+
+function mvTranslate(v) {
+    multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
+}
+
+function setMatrixUniforms(gl, shaderProgram, perspectiveMatrix) {
+
+    var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+
+    var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+}
+
+// WebGL的全局变量;
+let gl;
+
+let macl = {};
+
+function start(id, vertiecs, colors) {
+    let root = document.getElementById(id);
+    let canvas = document.createElement('canvas');
+    canvas.width = root.offsetWidth;
+    macl.width = root.offsetWidth;
+    canvas.height = root.offsetHeight;
+    macl.height = root.offsetHeight;
+
+    root.appendChild(canvas);
+    // 初始化 WebGL 上下文
+    gl = initWebGL(canvas);
+
+    // 只有在 WebGL 可用的时候才继续
+
+    if (gl) {
+        // 设置清除颜色为黑色，不透明
+        // gl.viewport(0, 0,640.0, 480.0);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        // 开启“深度测试”, Z-缓存
+        gl.enable(gl.DEPTH_TEST);
+        // 设置深度测试，近的物体遮挡远的物体
+        gl.depthFunc(gl.LEQUAL);
+        // 清除颜色和深度缓存
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        let {
+            shaderProgram,
+            vertexPositionAttribute,
+            vertexColorAttribute
+        } = initShaders(gl);
+
+        // Here's where we call the routine that builds all the objects
+        // we'll be drawing.
+
+        let {
+            squareVerticesBuffer,
+            squareVerticesColorBuffer
+        } = initBuffers(gl, vertiecs);
+
+        // Set up to draw the scene periodically.
+
+        setInterval(function () {
+            drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffer, vertexPositionAttribute, vertexColorAttribute);
+
+        }, 15);
+
+    }
+
+
+}
+
+
+function initWebGL(canvas) {
+    // 创建全局变量
+    window.gl = null;
+
+    try {
+        // 尝试获取标准上下文，如果失败，回退到试验性上下文
+        gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    } catch (e) {}
+
+    // 如果没有GL上下文，马上放弃
+    if (!gl) {
+        alert("WebGL初始化失败，可能是因为您的浏览器不支持。");
+        gl = null;
+    }
+    return gl;
+}
+
+
+function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffer, vertexPositionAttribute, vertexColorAttribute) {
+    // Clear the canvas before we start drawing on it.
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // Establish the perspective with which we want to view the
+    // scene. Our field of view is 45 degrees, with a width/height
+    // ratio of 640:480, and we only want to see objects between 0.1 units
+    // and 100 units away from the camera.
+    var roate = macl.width / macl.height;
+    let perspectiveMatrix = makePerspective(45, roate, 0.1, 100.0);
+
+    // Set the drawing position to the "identity" point, which is
+    // the center of the scene.
+
+    loadIdentity();
+
+    // Now move the drawing position a bit to where we want to start
+    // drawing the square.
+
+    mvTranslate([-0.0, 0.0, -6.0]);
+
+    // Draw the square by binding the array buffer to the square's vertices
+    // array, setting attributes, and pushing it to GL.
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
+    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
+    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+    setMatrixUniforms(gl, shaderProgram, perspectiveMatrix);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+var coreGL = {
+    start
+};
 
 class render {
 
     constructor(image) {
         this._image = image;
-        this._stage = new PIXI.Container();
         this._emitter = new Emitter();
         this._image_status = {};
         let self = this;
@@ -234,33 +581,47 @@ class render {
 
             // let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
 
-            let imageSprite = new PIXI.Sprite.from(self.imgs);
+           
+        };
 
+        this.imgs.onload = ()=>{
+            let canvas = document.createElement('canvas');
+            canvas.width = this.imgs.width;
+            canvas.height = this.imgs.height;
 
-            let Filter = new PIXI.filters.ColorMatrixFilter();
-            console.dir(imageSprite);
-            let myFilter = self.GrayFilterGLSL();
+            let ctx = canvas.getContext('2d');
 
+            ctx.drawImage(this.imgs,0,0);
+            let pixels = ctx.getImageData(0,0,canvas.width,canvas.height);
 
-            imageSprite.filters = [myFilter];
+            let vertiecs = [];
+            let colors = [];
+            let data = pixels.data;
+            for(let i = 0 , I_len = pixels.data.length; i<I_len;i+=4){
+                colors.push(data[i]/255,data[i+1]/255,data[i+2]/255,1.0);
+            }
 
-            self.position(imageSprite); //设置图片位置；
-            self._stage.addChild(imageSprite);
+            for(let i=0,I_len = this.imgs.width;i<I_len;i++){
+                for(let j=0,J_len =this.imgs.height;j<J_len;j++){
+                    vertiecs.push(i,j,0);
+                }
+            }
 
-            this._image_status[`image-loadover`] = true;
-            this._emitter.emit(`image-loadover`, self._stage);
+            this.vertiecs = vertiecs;
+            this.colors = colors;
+            coreGL.start("glcanvas",vertiecs,colors);
         };
 
         return this;
     }
 
     start() {
-        if (!this._image_status[`image-loadover`]) {
-            this._emitter.once(`image-loadover`, data => renderer.render(data));
-        } else {
-            renderer.render(this._stage);
-        }
-        return this;
+        // if (!this._image_status[`image-loadover`]) {
+        //     this._emitter.once(`image-loadover`, data => renderer.render(data));
+        // } else {
+        //     renderer.render(this._stage);
+        // }
+        // return this;
     }
 
     position(image) {
@@ -325,9 +686,9 @@ class render {
             "attribute vec4 aColor;",
             "uniform mat3 projectionMatrix;",
             "uniform mat3 filterMatrix;",
-            "varying vec2 vTextureCoord;",
-            "varying vec2 vFilterCoord;",
-            "varying vec4 vColor;",
+            "letying vec2 vTextureCoord;",
+            "letying vec2 vFilterCoord;",
+            "letying vec4 vColor;",
             "void main(void) {",            
             "   gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
             // "    vColor = aColor ;",
@@ -351,7 +712,7 @@ class render {
 
         // let fragmentSrc = [
         //     "precision mediump float;",
-        //     "varying vec2 vTextureCoord;\n",
+        //     "letying vec2 vTextureCoord;\n",
         //     "uniform sampler2D uSampler;\n",
         //     "uniform float width;\n",
         //     "uniform float min;\n",
@@ -373,9 +734,9 @@ class render {
         // ].join('');
 
         Filter.fragmentSrc = [
-            "varying vec2 vTextureCoord;",
-            "varying vec2 vFilterCoord;",
-            "varying vec4 vColor;",            
+            "letying vec2 vTextureCoord;",
+            "letying vec2 vFilterCoord;",
+            "letying vec4 vColor;",            
             "uniform sampler2D uSampler;",
             "uniform sampler2D filterSampler;",
             "void main(void) {",
@@ -528,7 +889,7 @@ class View {
     load() {
         this._length = this._series.images.length;
         this._renderers = [];
-        var self = this;
+        let self = this;
         let Count = 0;
         self._process = 0;
         timerun.timeChunk(self._series.images, function (image) {
@@ -612,7 +973,7 @@ class Series {
     }
 
     ImageDom(url) {
-        var img = document.createElement('img');
+        let img = document.createElement('img');
         img.src = ImageFactory$1.get(url).src;
         img.width = 80;
         img.height = 80;
@@ -652,6 +1013,14 @@ handler_1234.on('onload', function (data) {
 //Tell the `renderer` to `render` the `stage`
 // renderer.render(stage);
 
-}(fetch,Emitter,PIXI));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==
+
+
+
+var main = {};
+
+return main;
+
+}(fetch,Emitter,window));
+
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==

@@ -31,7 +31,7 @@ export default class View {
     load() {
         this._length = this._series.images.length;
         this._renderers = [];
-        var self = this;
+        let self = this;
         let Count = 0;
         self._process = 0;
         timerun.timeChunk(self._series.images, function (image) {

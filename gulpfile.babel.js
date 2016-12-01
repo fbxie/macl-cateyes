@@ -78,7 +78,8 @@ gulp.task('js', cb => {
                 jQuery: 'jQuery',
                 PIXI: 'PIXI',
                 fetch: 'fetch',
-                Emitter: 'Emitter'
+                Emitter: 'Emitter',
+                window:'window'
             }
         }))
         .on('error',function(err){
@@ -113,7 +114,6 @@ gulp.task('css', cb => {
         .pipe(_$.stylus())
         .pipe(_$.sourcemaps.write())
         .pipe(gulp.dest('./dist/assert/css'))
-        .pipe(browserSync.stream());
 
     cb()
 });

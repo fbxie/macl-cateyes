@@ -1,7 +1,7 @@
 import PIXI from 'PIXI';
 
 PIXI.Texture.Draw = function (cb) {
-    var canvas = document.createElement('canvas');
+    let canvas = document.createElement('canvas');
     if (typeof cb == 'function') cb(canvas);
     return PIXI.Texture.fromCanvas(canvas);
 }
@@ -15,7 +15,7 @@ PIXI.myGrayFilter = function(uniforms){
     // set the uniforms
     this.uniforms = uniforms;
     this.fragmentSrc = [
-        "varying vec2 vTextureCoord;\n",
+        "letying vec2 vTextureCoord;\n",
         "uniform sampler2D uSampler;\n",
         "uniform float roate;\n",
         "uniform float min;\n",
