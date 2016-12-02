@@ -187,10 +187,9 @@ function initBuffers(gl, vertices, colors) {
     // Now pass the list of vertices into WebGL to build the shape. We
     // do this by creating a Float32Array from the JavaScript array,
     // then use it to fill the current vertex buffer.
-
+    console.dir(new Float32Array(vertices));
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-    var colors =colors|| [
+    colors =colors|| [
         1.0, 1.0, 1.0, 1.0, // white
         1.0, 0.0, 0.0, 1.0, // red
         0.0, 1.0, 0.0, 1.0, // green
@@ -200,6 +199,7 @@ function initBuffers(gl, vertices, colors) {
     let squareVerticesColorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    console.dir(new Float32Array(colors));
     return {
         squareVerticesBuffer,
         squareVerticesColorBuffer
@@ -482,7 +482,7 @@ function start(id, vertiecs, colors) {
         let {
             squareVerticesBuffer,
             squareVerticesColorBuffer
-        } = initBuffers(gl, vertiecs);
+        } = initBuffers(gl, vertiecs,colors);
 
         // Set up to draw the scene periodically.
 
@@ -525,7 +525,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
     // ratio of 640:480, and we only want to see objects between 0.1 units
     // and 100 units away from the camera.
     var roate = macl.width / macl.height;
-    let perspectiveMatrix = makePerspective(45, roate, 0.0000001, 100000.0);
+    let perspectiveMatrix = makePerspective(46, roate, 0.0000001, 100000.0);
 
     // Set the drawing position to the "identity" point, which is
     // the center of the scene.
@@ -535,7 +535,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
     // Now move the drawing position a bit to where we want to start
     // drawing the square.
 
-    mvTranslate([-0.0, 0.0,-2.5]);
+    mvTranslate([-0.0, 0.0,-6]);
 
     // Draw the square by binding the array buffer to the square's vertices
     // array, setting attributes, and pushing it to GL.
@@ -546,6 +546,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
 
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
     gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+    
     setMatrixUniforms(gl, shaderProgram, perspectiveMatrix);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -597,12 +598,15 @@ class render {
             let vertiecs = [];
             let colors = [];
             let data = pixels.data;
-            for (var i = 0; i < 16; i += 4) {
-                data[i] = i;
+            data = [];
+            for (var i = 0; i < 36; i++) {
+                data[i] = 255 / i;
             }
 
-            for (let i = 0, I_len = data.length; i < I_len; i += 4) {
-                colors.push(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255, 1.0);
+            for (let i = 1, I_len = data.length + 1; i < I_len; i += 4) {
+                colors.push(calcolor(data[i]), calcolor(data[i]), calcolor(data[i]), 1.0);
+                let tempcolors = [];
+                tempcolors.push(calcolor(data[i]), calcolor(data[i]), calcolor(data[i]), 1.0);
             }
 
             let width = 3 || this.imgs.width;
@@ -610,17 +614,35 @@ class render {
 
             for (let i = 0; i < width; i++) {
                 for (let j = 0; j < height; j++) {
-                    vertiecs.push((2 * i - width + 1) / (width - 1),
-                        (2 * j - height + 1) / (height - 1), 0);
+
+                    let position = [];
+                    position.push(calposition(i, width));
+                    position.push(calposition(j, height));
+                    position.push(0);
+
+                    vertiecs.push(calposition(i, width), calposition(i, height), 0);
+
+
                 }
             }
-            console.dir(vertiecs);
             this.vertiecs = vertiecs;
             this.colors = colors;
             coreGL.start("glcanvas", vertiecs, colors);
         };
 
         return this;
+
+
+        function calposition(n, m) {
+
+            let t = 2 * n - m + 1;
+            return t / (m - 1);
+
+        }
+
+        function calcolor(n) {
+            return n / 255;
+        }
     }
 
     start() {
@@ -1031,4 +1053,4 @@ return main;
 
 }(fetch,Emitter,window));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OyJ9
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==

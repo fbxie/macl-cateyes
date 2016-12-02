@@ -45,12 +45,15 @@ class render {
             let vertiecs = [];
             let colors = [];
             let data = pixels.data;
-            for (var i = 0; i < 16; i += 4) {
-                data[i] = i;
+            data = [];
+            for (var i = 0; i < 36; i++) {
+                data[i] = 255 / i;
             }
 
-            for (let i = 0, I_len = data.length; i < I_len; i += 4) {
-                colors.push(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255, 1.0);
+            for (let i = 1, I_len = data.length + 1; i < I_len; i += 4) {
+                colors.push(calcolor(data[i]), calcolor(data[i]), calcolor(data[i]), 1.0);
+                let tempcolors = [];
+                tempcolors.push(calcolor(data[i]), calcolor(data[i]), calcolor(data[i]), 1.0);
             }
 
             let width = 3 || this.imgs.width;
@@ -58,17 +61,35 @@ class render {
 
             for (let i = 0; i < width; i++) {
                 for (let j = 0; j < height; j++) {
-                    vertiecs.push((2 * i - width + 1) / (width - 1),
-                        (2 * j - height + 1) / (height - 1), 0);
+
+                    let position = [];
+                    position.push(calposition(i, width));
+                    position.push(calposition(j, height));
+                    position.push(0);
+
+                    vertiecs.push(calposition(i, width), calposition(i, height), 0);
+
+
                 }
             }
-            console.dir(vertiecs);
             this.vertiecs = vertiecs;
             this.colors = colors;
             coreGL.start("glcanvas", vertiecs, colors);
         };
 
         return this;
+
+
+        function calposition(n, m) {
+
+            let t = 2 * n - m + 1;
+            return t / (m - 1);
+
+        }
+
+        function calcolor(n) {
+            return n / 255;
+        }
     }
 
     start() {

@@ -56,7 +56,7 @@ function start(id, vertiecs, colors) {
         let {
             squareVerticesBuffer,
             squareVerticesColorBuffer
-        } = initBuffers(gl, vertiecs);
+        } = initBuffers(gl, vertiecs,colors);
 
         // Set up to draw the scene periodically.
 
@@ -99,7 +99,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
     // ratio of 640:480, and we only want to see objects between 0.1 units
     // and 100 units away from the camera.
     var roate = macl.width / macl.height;
-    let perspectiveMatrix = makePerspective(45, roate, 0.0000001, 100000.0);
+    let perspectiveMatrix = makePerspective(46, roate, 0.0000001, 100000.0);
 
     // Set the drawing position to the "identity" point, which is
     // the center of the scene.
@@ -109,7 +109,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
     // Now move the drawing position a bit to where we want to start
     // drawing the square.
 
-    mvTranslate([-0.0, 0.0,-2.5]);
+    mvTranslate([-0.0, 0.0,-6]);
 
     // Draw the square by binding the array buffer to the square's vertices
     // array, setting attributes, and pushing it to GL.
@@ -120,6 +120,7 @@ function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffe
 
     gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
     gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+    
     setMatrixUniforms(gl, shaderProgram, perspectiveMatrix);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
