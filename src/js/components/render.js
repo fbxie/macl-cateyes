@@ -29,46 +29,43 @@ class render {
 
             // let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
 
-           
+
         };
 
-        this.imgs.onload = ()=>{
+        this.imgs.onload = () => {
             let canvas = document.createElement('canvas');
             canvas.width = this.imgs.width;
             canvas.height = this.imgs.height;
 
             let ctx = canvas.getContext('2d');
 
-            ctx.drawImage(this.imgs,0,0);
-            let pixels = ctx.getImageData(0,0,canvas.width,canvas.height);
+            ctx.drawImage(this.imgs, 0, 0);
+            let pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
             let vertiecs = [];
             let colors = [];
             let data = pixels.data;
-            for(var i=0; i<16;i +=4){
+            for (var i = 0; i < 16; i += 4) {
                 data[i] = i;
             }
 
-            for(let i = 0 , I_len = data.length; i<I_len;i+=4){
-                colors.push(data[i]/255,data[i+1]/255,data[i+2]/255,1.0);
+            for (let i = 0, I_len = data.length; i < I_len; i += 4) {
+                colors.push(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255, 1.0);
             }
 
-            let width =2||this.imgs.width;
-            let height =2||this.imgs.height;
-            i =0-width;
-            
-            for(;i<=width;i+=2){
-                let j = 0-height;
-                for(;j<=height;j+=2){
-                    
-                    vertiecs.push(i/width,j/height,0);   
-                    
+            let width = 3 || this.imgs.width;
+            let height = 3 || this.imgs.height;
+
+            for (let i = 0; i < width; i++) {
+                for (let j = 0; j < height; j++) {
+                    vertiecs.push((2 * i - width + 1) / (width - 1),
+                        (2 * j - height + 1) / (height - 1), 0);
                 }
             }
             console.dir(vertiecs);
             this.vertiecs = vertiecs;
             this.colors = colors;
-            coreGL.start("glcanvas",vertiecs,colors);
+            coreGL.start("glcanvas", vertiecs, colors);
         };
 
         return this;
@@ -148,7 +145,7 @@ class render {
             "letying vec2 vTextureCoord;",
             "letying vec2 vFilterCoord;",
             "letying vec4 vColor;",
-            "void main(void) {",            
+            "void main(void) {",
             "   gl_Position = vec4((projectionMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);",
             // "    vColor = aColor ;",
             "   vFilterCoord = (filterMatrix * vec3(aTextureCoord, 1.0)).xy;",
@@ -163,7 +160,7 @@ class render {
             // "   vColor.r = 255.0/255.0;",
             // // "   vColor.g = gray/255.0;",
             // "   vColor.b = gray/255.0;",
-            
+
             "}"
         ].join('\n');
 
@@ -195,7 +192,7 @@ class render {
         Filter.fragmentSrc = [
             "letying vec2 vTextureCoord;",
             "letying vec2 vFilterCoord;",
-            "letying vec4 vColor;",            
+            "letying vec4 vColor;",
             "uniform sampler2D uSampler;",
             "uniform sampler2D filterSampler;",
             "void main(void) {",
