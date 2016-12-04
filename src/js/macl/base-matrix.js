@@ -19,7 +19,6 @@ export function multMatrix(m) {
 export function mvTranslate(v) {
     multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
 }
-
 export function setMatrixUniforms(gl, shaderProgram, perspectiveMatrix) {
 
     var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");

@@ -2,47 +2,47 @@
 <html lang="en">
 
 <head>
-	<meta charset="UTF-8">
-	<meta name="renderer" content="webkit">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=yes">
-	<link rel="stylesheet" href="lib/csslib0.css">
-	<link rel="stylesheet" href="./assert/css/main.css">
-	<title>mac-豌豆影像-猫眼</title>
+  <meta charset="UTF-8">
+  <meta name="renderer" content="webkit">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=yes">
+  <link rel="stylesheet" href="lib/csslib0.css">
+  <link rel="stylesheet" href="./assert/css/main.css">
+  <title>mac-豌豆影像-猫眼</title>
 </head>
 
 <body>
-	<header id="header"></header>
-	<main>
-		<aside id="aside"></aside>
-		<div id="main">
-			<div id="glcanvas"></div>
-		</div>
-	</main>
+  <header id="header"></header>
+  <main>
+    <aside id="aside"></aside>
+    <div id="main">
+      <div id="glcanvas"></div>
+    </div>
+  </main>
 </body>
-<!-- Fragment shader program -->
 <script id="shader-fs" type="x-shader/x-fragment">
-      varying lowp vec4 vColor;
+  varying lowp vec4 vColor;
 
-      void main(void) {
-        gl_FragColor = vColor;
-      }
-    </script>
-<!-- Vertex shader program -->
+  void main(void) {
+    gl_FragColor = vColor;
+  }
+</script>
 <script id="shader-vs" type="x-shader/x-vertex">
-      attribute vec3 aVertexPosition;
-      attribute vec4 aVertexColor;
-
-      uniform mat4 uMVMatrix;
-      uniform mat4 uPMatrix;
-
-      varying lowp vec4 vColor;
-
-      void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-        vColor = aVertexColor;
-      }
-    </script>
+attribute vec3 aVertexPosition;
+attribute vec4 aVertexColor;
+uniform mat4 uMVMatrix;
+uniform mat4 uPMatrix;
+varying lowp vec4 vColor;
+void main(void) {
+  gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+  gl_PointSize =11.4;
+  vec4 c = aVertexColor;
+  float gray = (c.r * 65536.0) + (c.g * 256.0) + (c.b);
+  gray = gray - 2047.0/1000.0;
+  gray = gray - 50.0/1000.0 + 350.0 / 2000.0;
+  gray = gray / 350.0*1000.0;
+  vColor = vec4(gray,gray,gray,1.0);
+}
+</script>
 <script src="lib/jslib0.js"></script>
 <script src="./js/main.js"></script>
-
 </html>

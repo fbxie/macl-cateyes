@@ -38,7 +38,7 @@ gulp.task('lib', cb => {
     cb();
 });
 
-gulp.task('link', ['html', 'css', 'lib'], cb => {
+gulp.task('link', cb => {
     let files = {};
     files.js = linkconfig(jsconfig, 'js');
     files.css = linkconfig(cssconfig, 'css');
@@ -49,7 +49,8 @@ gulp.task('link', ['html', 'css', 'lib'], cb => {
             js: files.js,
             css: files.css
         }))
-        .pipe(gulp.dest('./dist'));
+        .pipe(gulp.dest('./dist'))
+        .on('finish',browserSync.reload);
     cb();
 
     function linkconfig(config, type) {
@@ -79,10 +80,10 @@ gulp.task('js', cb => {
                 PIXI: 'PIXI',
                 fetch: 'fetch',
                 Emitter: 'Emitter',
-                window:'window'
+                window: 'window'
             }
         }))
-        .on('error',function(err){
+        .on('error', function (err) {
             console.dir(err);
         })
         .pipe(_$.sourcemaps.write())
@@ -103,7 +104,7 @@ gulp.task('js', cb => {
 gulp.task('html', cb => {
     gulp.src('./src/layout/*.html')
         .pipe(gulp.dest('./dist'))
-        .pipe(browserSync.stream());
+        // .on("finish",browserSync.reload);
 
     cb();
 });
@@ -123,10 +124,14 @@ gulp.task('clean', cb => {
         .pipe(_$.clean());
 });
 
+
+
 gulp.task('serve', cb => {
     browserSync.init({
+        open: false,
         server: {
-            baseDir: ["./dist"],
+            baseDir: "./dist",
+            
             middleware: [SSI({
                 baseDir: './dist',
                 ext: '.html'
@@ -145,9 +150,8 @@ gulp.task('serve', cb => {
     gulp.watch("src/js/**/*.js", ['js']);
     gulp.watch("src/**/*.json", ['js']);
     gulp.watch("src/js/**/*.ts", ['js']);
-    gulp.watch("src/layout/**/*.html", ['html']);
-    gulp.watch("dist/**/*.html").on("change", browserSync.reload);
+    gulp.watch("src/layout/**/*.html", ['html','link',browserSync.reload]);
 });
 
-
-gulp.task('default', ['link', 'css', 'js', 'html', 'serve']);
+gulp.task('liblink',['css','js','html','link']);
+gulp.task('default', [ 'css', 'js', 'html','link', 'serve']);
