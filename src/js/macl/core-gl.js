@@ -1,9 +1,5 @@
-import {
-    initBuffers
-} from './base-buffer';
-import {
-    initShaders
-} from './base-shader';
+import Buffer from './base-buffer';
+import Shader from './base-shader';
 
 import {
     loadIdentity,
@@ -38,22 +34,21 @@ function start(id, vertiecs, colors) {
         gl.depthFunc(gl.LEQUAL); // 设置深度测试，近的物体遮挡远的物体
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 清除颜色和深度缓存
 
-        let {
-            shaderProgram,
-            vertexPositionAttribute,
-            vertexColorAttribute
-        } = initShaders(gl);
 
-        let {
-            squareVerticesBuffer,
-            squareVerticesColorBuffer
-        } = initBuffers(gl, vertiecs, colors);
+        let shader = new Shader(gl,Shader.getShaderElementById('shader-vs'),Shader.getShaderElementById('shader-fs'));
+        shader.run();
+        let shaderProgram = shader.shaderProgram;
+        let vertexPositionAttribute = shader.vertexPositionAttribute;
+        let vertexColorAttribute = shader.vertexColorAttribute;
+
+        let buffer  = new Buffer(gl,vertiecs, colors);
+
+        buffer.run();
+        let squareVerticesBuffer = buffer.VerticesBuffer;
+        let squareVerticesColorBuffer = buffer.VerticesColorBuffer;
 
 
         drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffer, vertexPositionAttribute, vertexColorAttribute);
-
-
-
     }
 
 
@@ -106,17 +101,17 @@ class coreGL {
 
     }
 
-    initWebGL(){
+    initWebGL() {
         let root = document.getElementById(id);
-    let canvas = document.createElement('canvas');
-    canvas.width = root.offsetWidth;
-    macl.width = root.offsetWidth;
-    canvas.height = root.offsetHeight;
-    macl.height = root.offsetHeight;
+        let canvas = document.createElement('canvas');
+        canvas.width = root.offsetWidth;
+        macl.width = root.offsetWidth;
+        canvas.height = root.offsetHeight;
+        macl.height = root.offsetHeight;
 
-    root.appendChild(canvas);
-    gl = initWebGL(canvas);
-        
+        root.appendChild(canvas);
+        gl = initWebGL(canvas);
+
     }
 }
 

@@ -165,100 +165,138 @@ class ImageFactory {
 
 var ImageFactory$1 = new ImageFactory('image');
 
-function initBuffers(gl, vertices, colors) {
+class Buffer {
 
-    let squareVerticesBuffer = gl.createBuffer();
-
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-
-    vertices = vertices|| [
-        1.0, 1.0, 0.0, -1.0, 1.0, 0.0,
-        1.0, -1.0, 0.0, -1.0, -1.0, 0.0
-    ];
-
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    colors = colors|| [
-        1.0, 1.0, 1.0, 1.0, // white
-        1.0, 0.0, 0.0, 1.0, // red
-        0.0, 1.0, 0.0, 1.0, // green
-        0.0, 0.0, 1.0, 1.0 // blue
-    ];
-
-    let squareVerticesColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-    return {
-        squareVerticesBuffer,
-        squareVerticesColorBuffer
-    };
-}
-
-function initShaders(gl) {
-
-    let fragmentShader = getShader(gl, "shader-fs");
-    let vertexShader = getShader(gl, "shader-vs");
-
-    let shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
+    /**
+     * @param {object} gl
+     * @param {number[]} vertices
+     * @param {number[]} colors
+     */
+    constructor(gl, vertices, colors) {
+        this.gl = gl;
+        this.vertices = vertices || [];
+        this.colors = colors || [];
     }
 
-    gl.useProgram(shaderProgram);
+    run() {
 
-    let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        let gl =this.gl;
+        let VerticesBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER,VerticesBuffer);
+        let vertices = this.vertices || [
+            1.0, 1.0, 0.0, -1.0, 1.0, 0.0,
+            1.0, -1.0, 0.0, -1.0, -1.0, 0.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        let colors = this.colors || [
+            1.0, 1.0, 1.0, 1.0, // white
+            1.0, 0.0, 0.0, 1.0, // red
+            0.0, 1.0, 0.0, 1.0, // green
+            0.0, 0.0, 1.0, 1.0 // blue
+        ];
 
-    gl.enableVertexAttribArray(vertexPositionAttribute);
+        let VerticesColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, VerticesColorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-    let vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-    gl.enableVertexAttribArray(vertexColorAttribute);
-
-    return {
-        shaderProgram,
-        vertexPositionAttribute,
-        vertexColorAttribute
-    };
+        this.VerticesBuffer = VerticesBuffer;
+        this.VerticesColorBuffer =VerticesColorBuffer;
+    }
 }
 
-function getShader(gl, id) {
+class Shader {
+
+    /**
+     * @param {Object} gl
+     * @param {String|Array.<string>} vertexSrc
+     * @param {String|Array.<string>} fragmentSrc 
+     */
+    constructor(gl, vertexSrc, fragmentSrc) {
+        this.gl = gl;
+        this.vertexSrc = vertexSrc || '';
+        this.fragmentSrc = fragmentSrc || '';
+        return this;
+    }
+
+    run() {
+
+        this.vertexShader = this.createShader(this.vertexSrc, 'vertex');
+        this.fragmentShader = this.createShader(this.fragmentSrc, 'fragment');
+        let gl = this.gl;
+        let shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, this.vertexShader);
+        gl.attachShader(shaderProgram, this.fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
+        }
+
+        gl.useProgram(shaderProgram);
+
+        let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+
+        let vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(vertexColorAttribute);
+
+        this.shaderProgram = shaderProgram;
+        this.vertexPositionAttribute = vertexPositionAttribute;
+        this.vertexColorAttribute = vertexColorAttribute;
+
+        return this;
+    }
+
+    /**
+     * @param {string} source
+     * @param {string} [type = 'fragment'||'vertex']
+     */
+    createShader(source, type) {
+        let type_Shader;
+        if (type == 'fragment') {
+            type_Shader = this.gl.FRAGMENT_SHADER;
+        } else if (type == 'vertex') {
+            type_Shader = this.gl.VERTEX_SHADER;
+        } else {
+            return void 0;
+        }
+        let shader = this.gl.createShader(type_Shader);
+
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+            alert("An error occurred compiling the shaders: " + this.gl.getShaderInfoLog(shader));
+            return null;
+        }
+        return shader;
+    }
+
+
+
+
+}
+
+/**
+ * @public 
+ * @param {string} id
+ */
+Shader.getShaderElementById = function (id) {
     let shaderScript = document.getElementById(id);
 
     if (!shaderScript) {
         return null;
     }
-
     var theSource = "";
     var currentChild = shaderScript.firstChild;
-
     while (currentChild) {
         if (currentChild.nodeType == 3) {
             theSource += currentChild.textContent;
         }
         currentChild = currentChild.nextSibling;
     }
-
-    var shader;
-
-    if (shaderScript.type == "x-shader/x-fragment") {
-        shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if (shaderScript.type == "x-shader/x-vertex") {
-        shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-        return null;
-    }
-    gl.shaderSource(shader, theSource);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
-        return null;
-    }
-
-    return shader;
-}
+    return theSource;
+};
 
 // augment Sylvester some
 let Matrix = window$1.Matrix||function(){};
@@ -429,22 +467,21 @@ function start(id, vertiecs, colors) {
         gl.depthFunc(gl.LEQUAL); // 设置深度测试，近的物体遮挡远的物体
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 清除颜色和深度缓存
 
-        let {
-            shaderProgram,
-            vertexPositionAttribute,
-            vertexColorAttribute
-        } = initShaders(gl);
 
-        let {
-            squareVerticesBuffer,
-            squareVerticesColorBuffer
-        } = initBuffers(gl, vertiecs, colors);
+        let shader = new Shader(gl,Shader.getShaderElementById('shader-vs'),Shader.getShaderElementById('shader-fs'));
+        shader.run();
+        let shaderProgram = shader.shaderProgram;
+        let vertexPositionAttribute = shader.vertexPositionAttribute;
+        let vertexColorAttribute = shader.vertexColorAttribute;
+
+        let buffer  = new Buffer(gl,vertiecs, colors);
+
+        buffer.run();
+        let squareVerticesBuffer = buffer.VerticesBuffer;
+        let squareVerticesColorBuffer = buffer.VerticesColorBuffer;
 
 
         drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffer, vertexPositionAttribute, vertexColorAttribute);
-
-
-
     }
 
 
@@ -769,4 +806,4 @@ return main;
 
 }(fetch,Emitter,window));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7In0=
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OyJ9

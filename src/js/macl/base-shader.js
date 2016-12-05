@@ -1,70 +1,93 @@
-export function initShaders(gl) {
+export default class Shader {
 
-    let fragmentShader = getShader(gl, "shader-fs");
-    let vertexShader = getShader(gl, "shader-vs");
-
-    let shaderProgram = gl.createProgram();
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
-
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
+    /**
+     * @param {Object} gl
+     * @param {String|Array.<string>} vertexSrc
+     * @param {String|Array.<string>} fragmentSrc 
+     */
+    constructor(gl, vertexSrc, fragmentSrc) {
+        this.gl = gl;
+        this.vertexSrc = vertexSrc || '';
+        this.fragmentSrc = fragmentSrc || '';
+        return this;
     }
 
-    gl.useProgram(shaderProgram);
+    run() {
 
-    let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        this.vertexShader = this.createShader(this.vertexSrc, 'vertex');
+        this.fragmentShader = this.createShader(this.fragmentSrc, 'fragment');
+        let gl = this.gl;
+        let shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, this.vertexShader);
+        gl.attachShader(shaderProgram, this.fragmentShader);
+        gl.linkProgram(shaderProgram);
 
-    gl.enableVertexAttribArray(vertexPositionAttribute);
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
+        }
 
-    let vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-    gl.enableVertexAttribArray(vertexColorAttribute);
+        gl.useProgram(shaderProgram);
 
-    return {
-        shaderProgram,
-        vertexPositionAttribute,
-        vertexColorAttribute
-    };
+        let vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+
+        let vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(vertexColorAttribute);
+
+        this.shaderProgram = shaderProgram;
+        this.vertexPositionAttribute = vertexPositionAttribute;
+        this.vertexColorAttribute = vertexColorAttribute;
+
+        return this;
+    }
+
+    /**
+     * @param {string} source
+     * @param {string} [type = 'fragment'||'vertex']
+     */
+    createShader(source, type) {
+        let type_Shader;
+        if (type == 'fragment') {
+            type_Shader = this.gl.FRAGMENT_SHADER;
+        } else if (type == 'vertex') {
+            type_Shader = this.gl.VERTEX_SHADER;
+        } else {
+            return void 0;
+        }
+        let shader = this.gl.createShader(type_Shader);
+
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+            alert("An error occurred compiling the shaders: " + this.gl.getShaderInfoLog(shader));
+            return null;
+        }
+        return shader;
+    }
+
+
+
+
 }
 
-function getShader(gl, id) {
+/**
+ * @public 
+ * @param {string} id
+ */
+Shader.getShaderElementById = function (id) {
     let shaderScript = document.getElementById(id);
 
     if (!shaderScript) {
         return null;
     }
-
     var theSource = "";
     var currentChild = shaderScript.firstChild;
-
     while (currentChild) {
         if (currentChild.nodeType == 3) {
             theSource += currentChild.textContent;
         }
         currentChild = currentChild.nextSibling;
     }
-
-    var shader;
-
-    if (shaderScript.type == "x-shader/x-fragment") {
-        shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if (shaderScript.type == "x-shader/x-vertex") {
-        shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-        return null;
-    }
-    gl.shaderSource(shader, theSource);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
-        return null;
-    }
-
-    return shader;
+    return theSource;
 }
-
-export default {
-    initShaders,
-    getShader
-};
