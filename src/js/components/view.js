@@ -1,15 +1,18 @@
-import Dicom from './dicom';
+// import Dicom from './dicom';
+import Series from './series';
 import timerun from '../utils/timerun';
 import config from '../../config.json';
 
 export default class View {
     constructor(series, options) {
-        this._series = series;
-        this.options = options;
-        this._select = options && options.select || 0;
-        this._canvas = document.createElement('canvas');
-        this.select(0);
-        let self = this;
+        this.series = new Series(series);
+        this.series.creatView('glcanvas');
+        this.series.loadStage();
+        // this.options = options;
+        // this._select = options && options.select || 0;
+        // this._canvas = document.createElement('canvas');
+        // this.select(0);
+        // let self = this;
 
         return this;
     }

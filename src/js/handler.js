@@ -1,4 +1,4 @@
-import Server from './service';
+import Service from './service';
 import Emitter from 'Emitter';
 import {getAttribute} from './utils/namespace';
 
@@ -6,7 +6,7 @@ export default class Handler {
     constructor(studyId) {
         this.emitter = new Emitter();
         
-        Server.getDicom(studyId, data => {
+        Service.DicomServer.get(studyId, data => {
             this.dicom = data;
             this.emitter.emit('onload',data);
         });

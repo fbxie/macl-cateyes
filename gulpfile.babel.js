@@ -9,6 +9,7 @@ import SSI from 'browsersync-ssi';
 import jsconfig from './config/js.json';
 import cssconfig from './config/css.json';
 import json from 'rollup-plugin-json';
+import babel from 'rollup-plugin-babel';
 import proxy from 'http-proxy-middleware';
 
 
@@ -50,7 +51,7 @@ gulp.task('link', cb => {
             css: files.css
         }))
         .pipe(gulp.dest('./dist'))
-        .on('finish',browserSync.reload);
+        .on('finish', browserSync.reload);
     cb();
 
     function linkconfig(config, type) {
@@ -74,7 +75,11 @@ gulp.task('js', cb => {
             format: 'iife', //cjs iife umd es
             entry: './src/js/main.js',
             moduleName: 'MACL_CATEYES',
-            plugins: [json()],
+            // plugins:[json()],
+            plugins: [json(), babel({
+                presets: ["es2015-rollup","stage-0"],
+                babelrc: false
+            })],
             globals: {
                 jQuery: 'jQuery',
                 PIXI: 'PIXI',
@@ -131,7 +136,7 @@ gulp.task('serve', cb => {
         open: false,
         server: {
             baseDir: "./dist",
-            
+
             middleware: [SSI({
                 baseDir: './dist',
                 ext: '.html'
@@ -147,11 +152,11 @@ gulp.task('serve', cb => {
         }
     });
     gulp.watch("src/assert/css/**/*.styl", ['css']);
-    gulp.watch("src/js/**/*.js", ['js']);
+    gulp.watch("src/**/*.js", ['js']);
     gulp.watch("src/**/*.json", ['js']);
-    gulp.watch("src/js/**/*.ts", ['js']);
-    gulp.watch("src/layout/**/*.html", ['html','link',browserSync.reload]);
+    gulp.watch("src/**/*.ts", ['js']);
+    gulp.watch("src/layout/**/*.html", ['html', 'link', browserSync.reload]);
 });
 
-gulp.task('liblink',['css','js','html','link']);
-gulp.task('default', [ 'css', 'js', 'html','link', 'serve']);
+gulp.task('liblink', ['css', 'js', 'html', 'link']);
+gulp.task('default', ['css', 'js', 'html', 'link', 'serve']);

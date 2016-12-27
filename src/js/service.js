@@ -5,18 +5,15 @@ import Emitter from 'Emitter';
 /**
  * @class 
  */
-class Server {
+class BaseServer {
 
-    constructor() {
-        this.URL = config.URL;
-        this.dicom = {};
-        this.dicomcount = 0;
+    constructor(name, url) {
+        this.name = name;
+        this.url = url;
+        this.entities = {};
+        this.count = 0;
         this.emitter = new Emitter();
-        this.dicom_status = {};
-
-        this.image = {};
-        this.imagecount = 0;
-        this.image_status = {};
+        this.status = {};
     }
 
     /**
@@ -29,34 +26,45 @@ class Server {
      * @param {object} other - null
      * @param {dicom_callback} callback 
      */
-    getDicom(id, ...args) {
-        if (!id) {
-            id = `dicom-root-${this.dicomcount}`;
-            // this.dicomcount++; //自家
-        }
+    get(id, ...args) {
+
+        if (!id) id = `root`;
 
         let callback = args[args.length - 1];
         if (!callback && typeof callback != 'function') throw new Error('last params must be a function');
 
-        this.emitter.once(`dicom-${id}`, data => callback(data)); //订阅事件dicom
+        this.emitter.once(`${this.name}-${id}`, data => callback(data)); //订阅事件dicom
 
-        if (this.dicom[id]) {
-            return this.emitter.emit(`dicom-${id}`, this.dicom[id]);
+        if (this.entities[id]) {
+            return this.emitter.emit(`${this.name}-${id}`, this.entities[id]);
         }
 
-        if (this.dicom_status[id]) {
+        if (this.status[id]) {
             return;
         }
 
         let URL;
-        if (/dicom-root/i.test(id)) {
-            URL = config.URL.DICOM.replace(/(\$\{|\})/g, '');
+        if (/root/i.test(id)) {
+            URL = this.url.replace(/(\$\{|\})/g, '');
         } else {
-            URL = config.URL.DICOM.replace(/\$\{\w+\}/g, id);
+            URL = this.url.replace(/\$\{\w+\}/g, id);
         }
 
-        this.dicom_status[id] = true;
+        this.status[id] = true;
         let self = this;
+        this._require = {
+            URL,
+            id
+        };
+        this.requireGet();
+    }
+
+    requireGet() {
+        let self = this;
+        let {
+            URL,
+            id
+        } = this._require;
         fetch(URL, {
                 method: 'GET',
                 mode: 'same-origin',
@@ -64,24 +72,55 @@ class Server {
                     // 'Accept ': 'application / json ',
                     'Content-Type': 'application/json'
                 },
-                // credentials: 'include',
                 credentials: 'include'
             }).then(res => res.json())
             .then(res => {
                 if (config.CACHE) {
-                    self.dicom[id] = res.data
+                    self.entities[id] = res.data
                 };
-                self.emitter.emit(`dicom-${id}`, res.data);
+                self.emitter.emit(`${self.name}-${id}`, res.data);
             }).then(res => {
-                self.dicom_status[id] = false;
+                self.status[id] = false;
+            }).catch(res => {
+                // self.status[id] = false;
+                // throw new Error(res);
             });
-    }
-
-    getImage(id, ...args) {
-        if (!id) {
-            id = `image-root-${this.imagecount}`;
-        }
     }
 }
 
-export default new Server();
+class DicomServer extends BaseServer {
+    constructor() {
+        super('dicom', config.URL.DICOM);
+    }
+}
+class ImageServer extends BaseServer {
+    constructor() {
+        super('image', config.URL.IMAGE);
+    }
+    requireGet() {
+        let self = this;
+        let {
+            URL,
+            id
+        } = this._require;
+        let imgs = new Image();
+        imgs.src = URL;
+        imgs.onload = function () {
+            if (config.CACHE) {
+                self.entities[id] = imgs;
+            };
+            self.emitter.emit(`${self.name}-${id}`, imgs);
+            self.status[id] = false;
+        };
+
+        imgs.onerror = function () {
+            self.emitter.emit(`${self.name}-${id}`, null);
+            self.status[id] = false;
+        };
+    };
+}
+
+export default {
+    ImageServer: new ImageServer(),
+    DicomServer: new DicomServer()
+};

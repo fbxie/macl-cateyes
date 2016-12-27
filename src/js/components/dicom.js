@@ -1,7 +1,7 @@
 import Emitter from 'Emitter';
 import config from '../../config.json';
 import ImageFactory from './image-factory';
-import coreGL from '../macl/core-gl';
+// import coreGL from '../macl/core-gl';
 
 class Dicom {
 
@@ -20,7 +20,7 @@ class Dicom {
 
     start() {
         if (!this._image_status[`loadover`]) {
-            this._emitter.once(`loadover`, data => coreGL.start("glcanvas", this._macldata.vertiecs, this._macldata.colors));
+            // this._emitter.once(`loadover`, data => coreGL.start("glcanvas", this._macldata.vertiecs, this._macldata.colors));
         } else {
             coreGL.start("glcanvas", this._macldata.vertiecs, this._macldata.colors);
         }
