@@ -35,7 +35,7 @@ class render {
             // });
 
             // let imageSprite = new PIXI.Sprite(self._canvas); //创建图片精灵；
-
+            
             let imageSprite = new PIXI.Sprite.from(self.imgs);
 
 

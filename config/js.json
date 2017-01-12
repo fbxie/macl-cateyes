@@ -2,14 +2,10 @@
     "list": {
         "jquery": "./node_modules/jquery/dist/jquery.min.js",
         "fetch": "./node_modules/whatwg-fetch/fetch.js",
-        "Emitter":"./node_modules/browser-emitter/Emitter.js",
-        "matrix":"./src/assert/js/cuon-matrix.js",
-        "cuonUtils":"./src/assert/js/cuon-utils.js",
-        "debug":"./src/assert/js/webgl-debug.js",
-        "webglUtils":"./src/assert/js/webgl-debug.js"
+        "Emitter": "./node_modules/browser-emitter/Emitter.js",
+        "Pixi": "./node_modules/pixi.js/pixi.min.js"
     },
     "libs": [
-        ["matrix","cuonUtils","debug","webglUtils"],
-        ["fetch","jquery","Emitter"]
+        ["fetch","jquery","Emitter","Pixi"]
     ]
 }

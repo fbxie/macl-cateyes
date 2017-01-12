@@ -1,9 +1,8 @@
-var MACL_CATEYES = (function (fetch,Emitter,window$1) {
+var MACL_CATEYES = (function (fetch,Emitter) {
 'use strict';
 
 fetch = 'default' in fetch ? fetch['default'] : fetch;
 Emitter = 'default' in Emitter ? Emitter['default'] : Emitter;
-window$1 = 'default' in window$1 ? window$1['default'] : window$1;
 
 var URL = { "DICOM": "/service/fileRes/dcmJson?listId=${f355c24988bc460fa67073c85d508f1e}", "IMAGE": "/upload/api/1.0.0/file/acquisition/${46f27325b62793aa776e3dd8b85a8367}" };
 var CACHE = true;
@@ -436,632 +435,343 @@ var Handler = function () {
     return Handler;
 }();
 
-var Points$1 = function () {
-    function Points(img) {
-        classCallCheck(this, Points);
+var Renderer = function () {
+    function Renderer(width, height) {
+        classCallCheck(this, Renderer);
+        this.view = {};
+        this.gl = {};
+
+        var canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        this.view = canvas;
+        this.gl = Renderer.create3DContext(canvas);
+        return this;
+    } //domElement
+
+
+    createClass(Renderer, [{
+        key: "render",
+
+        /**
+         * 显示
+         */
+        value: function render(particle) {
+            var gl = this.gl;
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.enable(gl.DEPTH_TEST);
+
+            var shader = particle.filters[0];
+            this.gl.program = shader.initShader(this.gl);
+            var n = particle.loadBuffer(this.gl);
+
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            gl.drawArrays(gl.POINTS, 0, n);
+        }
+    }], [{
+        key: "create3DContext",
+        value: function create3DContext(canvas, options) {
+
+            var names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
+            var context = null;
+            for (var i = 0; i < names.length; i++) {
+                try {
+                    context = canvas.getContext(names[i], options);
+                } catch (e) {}
+
+                if (context) {
+                    break;
+                }
+            }
+
+            return context;
+        }
+    }]);
+    return Renderer;
+}();
+
+var Base = function () {
+    function Base(gl, vertiecs, colors, num) {
+        classCallCheck(this, Base);
+        this.gl = {};
         this.vertiecs = [];
         this.colors = [];
-        this.imagedata = {};
+        this.num = 0;
 
-        this.imagedata = Points.getImageData(img);
-        this.vertiecs = Points.getVertes(this.imagedata);
-        this.colors = Points.getColor(this.imagedata);
+        this.vertiecs = vertiecs;
+        this.colors = colors;
+        this.num = num;
+        return this;
+    }
+
+    createClass(Base, [{
+        key: 'initBuffer',
+        value: function initBuffer(gl) {
+            this.gl = gl;
+            // Write the vertex coordinates and color to the buffer object
+            if (!Base.initArrayBuffer(this.gl, this.vertiecs, 3, gl.FLOAT, 'aVertexPosition')) return -1;
+
+            if (!Base.initArrayBuffer(this.gl, this.colors, 4, gl.FLOAT, 'aVertexColor')) return -1;
+
+            return this.num;
+        }
+    }], [{
+        key: 'initArrayBuffer',
+        value: function initArrayBuffer(gl, data, num, type, attribute) {
+            // Create a buffer object
+            var buffer = gl.createBuffer();
+            if (!buffer) {
+                console.log('Failed to create the buffer object');
+                return false;
+            }
+            // Write date into the buffer object
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+            // Assign the buffer object to the attribute variable
+            var a_attribute = gl.getAttribLocation(gl.program, attribute);
+            if (a_attribute < 0) {
+                console.log('Failed to get the storage location of ' + attribute);
+                return false;
+            }
+            gl.vertexAttribPointer(a_attribute, num, type, false, 0, 0);
+            // Enable the assignment of the buffer object to the attribute variable
+            gl.enableVertexAttribArray(a_attribute);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+            return true;
+        }
+    }]);
+    return Base;
+}();
+
+var Base$2 = function () {
+    function Base(gl, vshader, fshader) {
+        classCallCheck(this, Base);
+        this.gl = {};
+        this.vshader = {};
+        this.fshader = {};
+        this.program = {};
+
+        this.gl = gl;
+        this.vshader = vshader;
+        this.fshader = fshader;
 
         return this;
     }
 
-    createClass(Points, null, [{
-        key: 'getImageData',
-        value: function getImageData(img) {
+    createClass(Base, [{
+        key: 'initShader',
+        value: function initShader(gl) {
+            this.gl = gl;
+            this.program = Base.createProgram(this.gl, this.vshader, this.fshader);
+            if (!this.program) {
+                console.log('Failed to create program');
+                return null;
+            }
+
+            gl.useProgram(this.program);
+            gl.program = this.program;
+
+            return this.program;
+        }
+    }], [{
+        key: 'createProgram',
+        value: function createProgram(gl, vshader, fshader) {
+            // Create shader object
+            var vertexShader = Base.loadShader(gl, gl.VERTEX_SHADER, vshader);
+            var fragmentShader = Base.loadShader(gl, gl.FRAGMENT_SHADER, fshader);
+
+            if (!vertexShader || !fragmentShader) {
+                return null;
+            }
+
+            // Create a program object
+            var program = gl.createProgram();
+            if (!program) {
+                return null;
+            }
+
+            // Attach the shader objects
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+
+            // Link the program object
+            gl.linkProgram(program);
+
+            // Check the result of linking
+            var linked = gl.getProgramParameter(program, gl.LINK_STATUS);
+            if (!linked) {
+                var error = gl.getProgramInfoLog(program);
+                console.log('Failed to link program: ' + error);
+                gl.deleteProgram(program);
+                gl.deleteShader(fragmentShader);
+                gl.deleteShader(vertexShader);
+                return null;
+            }
+            return program;
+        }
+    }, {
+        key: 'loadShader',
+        value: function loadShader(gl, type, source) {
+            // Create shader object
+            var shader = gl.createShader(type);
+            if (shader == null) {
+                console.log('unable to create shader');
+                return null;
+            }
+
+            // Set the shader program
+            gl.shaderSource(shader, source);
+
+            // Compile the shader
+            gl.compileShader(shader);
+
+            // Check the result of compilation
+            var compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+            if (!compiled) {
+                var error = gl.getShaderInfoLog(shader);
+                console.log('Failed to compile shader: ' + error);
+                gl.deleteShader(shader);
+                return null;
+            }
+
+            return shader;
+        }
+    }]);
+    return Base;
+}();
+
+var Cateyes = function (_Base) {
+    inherits(Cateyes, _Base);
+
+    function Cateyes(gl, vshader, fshader) {
+        var _ret;
+
+        classCallCheck(this, Cateyes);
+
+        var _this = possibleConstructorReturn(this, (Cateyes.__proto__ || Object.getPrototypeOf(Cateyes)).call(this));
+
+        _this.vshader = ['attribute vec3 aVertexPosition;', 'attribute vec4 aVertexColor;',
+        // 'uniform mat4 uMVMatrix;',
+        // 'uniform mat4 uPMatrix;',
+        'varying lowp vec4 vColor;', 'void main(void) {', '   gl_Position =vec4(aVertexPosition, 1.0);',
+
+        // '   gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);',
+        '   gl_PointSize =11.4;', '   vec4 c = aVertexColor;', '   float gray = (c.r * 65536.0) + (c.g * 256.0) + (c.b);', '   gray = gray - 2047.0/1000.0;', '   gray = gray - 50.0/1000.0 + 350.0 / 2000.0;', '   gray = gray / 350.0*1000.0;', '   vColor = vec4(gray,gray,gray,1.0);', '}'].join('\n');
+        _this.fshader = ['varying lowp vec4 vColor;', 'void main(void) {', 'gl_FragColor = vColor;', '} '].join('\n');
+
+        _this.gl = gl;
+        _this.vshader = vshader || _this.vshader;
+        _this.fshader = fshader || _this.fshader;
+
+        return _ret = _this, possibleConstructorReturn(_this, _ret);
+    }
+
+    return Cateyes;
+}(Base$2);
+
+var Shader = {
+    Cateyes: Cateyes
+};
+
+var PImage$1 = function (_Base) {
+    inherits(PImage, _Base);
+
+    function PImage(img) {
+        var _ret;
+
+        classCallCheck(this, PImage);
+
+        var _this = possibleConstructorReturn(this, (PImage.__proto__ || Object.getPrototypeOf(PImage)).call(this));
+
+        _this.vertiecs = [];
+        _this.colors = [];
+        _this.filters = [];
+
+        var pixels = PImage.getPixels(img);
+        _this.colors = PImage.getColor(pixels);
+        _this.vertiecs = PImage.getPosition(pixels);
+        _this.num = pixels.width * pixels.height;
+        _this.filters.push(new Shader.Cateyes());
+        return _ret = _this, possibleConstructorReturn(_this, _ret);
+    }
+
+    createClass(PImage, [{
+        key: 'loadBuffer',
+        value: function loadBuffer(gl) {
+            this.gl = gl;
+            var n = this.initBuffer(gl);
+            if (n < 0) {
+                console.log('Failed to set the vertex information');
+                return false;
+            }
+            return true;
+        }
+    }], [{
+        key: 'getPixels',
+        value: function getPixels(img) {
             var canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
 
             var ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
-
             return ctx.getImageData(0, 0, canvas.width, canvas.height);
-        }
-    }, {
-        key: 'getVertes',
-        value: function getVertes(pixels) {
-            var vertiecs = [];
-            var data = pixels.data;
-            var width = pixels.width;
-            var height = pixels.height;
-
-            for (var i = 0; i < width; i++) {
-                for (var j = 0; j < height; j++) {
-                    vertiecs.push(Points.calposition(j, height), -Points.calposition(i, width), 0);
-                }
-            }
-            return vertiecs;
         }
     }, {
         key: 'getColor',
         value: function getColor(pixels) {
-            var colors = [];
             var data = pixels.data;
-
-            for (var i = 0, len = data.length; i < len; i += 4) {
-                colors.push(data[i] / 1000, data[i + 1] / 1000, data[i + 2] / 1000, data[i + 3] / 1000);
+            var color = [];
+            for (var i = 0; i < data.length; i += 4) {
+                color.push(data[i] / 1000, data[i + 1] / 1000, data[i + 2] / 1000, data[i + 3] / 1000);
             }
-
-            return colors;
+            return color;
         }
     }, {
-        key: 'calposition',
-        value: function calposition(n, m) {
-            var t = 2 * n - m + 1;
-            return t / 1000;
-        }
-    }]);
-    return Points;
-}();
-
-var Transform$1 = function Transform$1() {
-    classCallCheck(this, Transform$1);
-    this.x = 0;
-    this.y = 0;
-    this.scaleX = 1;
-    this.scaleY = 1;
-    this.rotation = 0;
-    this.skewX = 0;
-    this.skewY = 0;
-    this.pivotX = 0;
-    this.pivotY = 0;
-};
-
-var Window$1 = function Window$1() {
-    classCallCheck(this, Window$1);
-    this.width = 350;
-    this.level = 50;
-
-    return this;
-};
-
-var DisplayObject = function () {
-    function DisplayObject() {
-        classCallCheck(this, DisplayObject);
-        this.alpha = 1;
-        this.filterArea = '';
-        this.filters = [];
-        this.transform = new Transform$1();
-
-        return this;
-    }
-
-    createClass(DisplayObject, [{
-        key: 'destory',
-        value: function destory() {}
-    }]);
-    return DisplayObject;
-}();
-
-var Container = function (_DisplayObject) {
-    inherits(Container, _DisplayObject);
-
-    function Container() {
-        var _ret;
-
-        classCallCheck(this, Container);
-
-        var _this = possibleConstructorReturn(this, (Container.__proto__ || Object.getPrototypeOf(Container)).call(this));
-
-        _this.sprites = [];
-
-        return _ret = _this, possibleConstructorReturn(_this, _ret);
-    }
-
-    createClass(Container, [{
-        key: 'addChild',
-        value: function addChild(sprite) {
-            this.sprites.push(sprite);
-            return this;
-        }
-    }, {
-        key: 'destory',
-        value: function destory() {}
-    }, {
-        key: 'clear',
-        value: function clear() {}
-    }]);
-    return Container;
-}(DisplayObject);
-
-var Renderer = function () {
-    function Renderer(width, height) {
-        classCallCheck(this, Renderer);
-        this.width = 0;
-        this.height = 0;
-        this.view = {};
-        this.gl = {};
-
-        this.width = width;
-        this.height = height;
-        this.view = Renderer.createCanvas(width, height);
-        this.gl = Renderer.createContext(this.view);
-        var gl = this.gl;
-        gl.clearColor(1.0, 1.0, 1.0, 1.0);
-        gl.enable(gl.DEPTH_TEST); // 开启“深度测试”, Z-缓存
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SPC_ALPHA);
-        gl.depthFunc(gl.LEQUAL);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 清除颜色和深度缓存
-
-        return this;
-    }
-    /**
-     * @param {number} width
-     * @param {number} height
-     * @returns {DOM_canvas} canvas
-     */
-
-
-    createClass(Renderer, [{
-        key: 'render',
-        value: function render(stage) {
-            this.clear();
-            this.initSprites(stage.sprites);
-        }
-    }, {
-        key: 'initSprites',
-        value: function initSprites(sprites) {
-            var _this = this;
-
-            sprites.forEach(function (item, index) {
-                item.draw(_this.gl);
-            });
-        }
-    }, {
-        key: 'clear',
-        value: function clear() {
-            this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-        }
-    }], [{
-        key: 'createCanvas',
-        value: function createCanvas(width, height) {
-            var canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            return canvas;
-        }
-
-        /**
-         * @param {DOM_canvas} canvas
-         */
-
-    }, {
-        key: 'createContext',
-        value: function createContext(canvas) {
-            var gl = void 0;
-            try {
-                gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-            } catch (e) {}
-
-            if (!gl) {
-                alert("WebGL初始化失败，可能是因为您的浏览器不支持。");
-                gl = null;
-            }
-            return gl;
-        }
-    }]);
-    return Renderer;
-}();
-
-/**
- * @class
- * @memberof PIXI.glCore.shader
- * @param type {String}
- * @return {Number}
- */
-var mapSize = function mapSize(type) {
-    return GLSL_TO_SIZE[type];
-};
-
-var GLSL_TO_SIZE = {
-    'float': 1,
-    'vec2': 2,
-    'vec3': 3,
-    'vec4': 4,
-
-    'int': 1,
-    'ivec2': 2,
-    'ivec3': 3,
-    'ivec4': 4,
-
-    'bool': 1,
-    'bvec2': 2,
-    'bvec3': 3,
-    'bvec4': 4,
-
-    'mat2': 4,
-    'mat3': 9,
-    'mat4': 16,
-
-    'sampler2D': 1
-};
-
-var mapSize$2 = function mapSize$2(gl, type) {
-    if (!GL_TABLE) {
-        var typeNames = Object.keys(GL_TO_GLSL_TYPES);
-
-        GL_TABLE = {};
-
-        for (var i = 0; i < typeNames.length; ++i) {
-            var tn = typeNames[i];
-            GL_TABLE[gl[tn]] = GL_TO_GLSL_TYPES[tn];
-        }
-    }
-
-    return GL_TABLE[type];
-};
-
-var GL_TABLE = null;
-
-var GL_TO_GLSL_TYPES = {
-    'FLOAT': 'float',
-    'FLOAT_VEC2': 'vec2',
-    'FLOAT_VEC3': 'vec3',
-    'FLOAT_VEC4': 'vec4',
-
-    'INT': 'int',
-    'INT_VEC2': 'ivec2',
-    'INT_VEC3': 'ivec3',
-    'INT_VEC4': 'ivec4',
-
-    'BOOL': 'bool',
-    'BOOL_VEC2': 'bvec2',
-    'BOOL_VEC3': 'bvec3',
-    'BOOL_VEC4': 'bvec4',
-
-    'FLOAT_MAT2': 'mat2',
-    'FLOAT_MAT3': 'mat3',
-    'FLOAT_MAT4': 'mat4',
-
-    'SAMPLER_2D': 'sampler2D'
-};
-
-var Shader = function () {
-    function Shader(gl, vertexSrc, fragmentSrc) {
-        classCallCheck(this, Shader);
-        this.gl = {};
-        this.program = {};
-        this.attributes = {};
-
-
-        this.gl = gl;
-        this.program = Shader.compileProgram(gl, vertexSrc, fragmentSrc);
-        this.attributes = Shader.bind(gl, this.program);
-        return this;
-    }
-
-    createClass(Shader, null, [{
-        key: 'bind',
-        value: function bind(gl, program) {
-            var attributes = {};
-            var totalAttributes = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-
-            for (var i = 0; i < totalAttributes; i++) {
-                var attribData = gl.getActiveAttrib(program, i);
-                var type = mapSize$2(gl, attribData.type);
-
-                attributes[attribData.name] = {
-                    type: type,
-                    size: mapSize(type),
-                    location: gl.getAttribLocation(program, attribData.name),
-                    pointer: pointer
-                };
-            }
-
-            return attributes;
-        }
-    }, {
-        key: 'compileProgram',
-        value: function compileProgram(gl, vertexSrc, fragmentSrc) {
-
-            var glVertShader = Shader.compileShader(gl, gl.VERTEX_SHADER, vertexSrc);
-            var glFragShader = Shader.compileShader(gl, gl.FRAGMENT_SHADER, fragmentSrc);
-
-            var program = gl.createProgram();
-
-            gl.attachShader(program, glVertShader);
-            gl.attachShader(program, glFragShader);
-            gl.linkProgram(program);
-            gl.useProgram(program);
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error('MACL Error: Could not initialize shader.');
-                console.error('gl.VALIDATE_STATUS', gl.getProgramParameter(program, gl.VALIDATE_STATUS));
-                console.error('gl.getError()', gl.getError());
-
-                if (gl.getProgramInfoLog(program) !== '') {
-                    console.warn('MACL Warning: gl.getProgramInfoLog()', gl.getProgramInfoLog(program));
+        key: 'getPosition',
+        value: function getPosition(pixels) {
+            var data = pixels.data;
+            var vertiecs = [];
+            var calposition = function calposition(n, m) {
+                return (2 * n - m + 1) / 1000;
+            };
+            var width = pixels.width;
+            var height = pixels.height;
+            for (var i = 0; i < width; i++) {
+                for (var j = 0; j < height; j++) {
+                    vertiecs.push(calposition(j, height), -calposition(i, width), 0);
                 }
-
-                gl.deleteProgram(program);
-                program = null;
             }
 
-            gl.deleteShader(glVertShader);
-            gl.deleteShader(glFragShader);
-
-            return program;
-        }
-    }, {
-        key: 'compileShader',
-        value: function compileShader(gl, type, src) {
-            var shader = gl.createShader(type);
-
-            gl.shaderSource(shader, src);
-            gl.compileShader(shader);
-
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.log(gl.getShaderInfoLog(shader));
-                return null;
-            }
-
-            return shader;
-        }
-    }, {
-        key: 'getShaderElementById',
-        value: function getShaderElementById(id) {
-            var shaderScript = document.getElementById(id);
-
-            if (!shaderScript) {
-                return null;
-            }
-            var theSource = "";
-            var currentChild = shaderScript.firstChild;
-            while (currentChild) {
-                if (currentChild.nodeType == 3) {
-                    theSource += currentChild.textContent;
-                }
-                currentChild = currentChild.nextSibling;
-            }
-            return theSource;
+            return vertiecs;
         }
     }]);
-    return Shader;
-}();
+    return PImage;
+}(Base);
 
-var pointer = function pointer(gl, type, normalized, stride, start) {
-    gl.vertexAttribPointer(this.location, this.size, type || gl.FLOAT, normalized || false, stride || 0, start || 0);
+var Particle = {
+    PImage: PImage$1
 };
 
-var Buffer = function () {
-    function Buffer(gl, data) {
-        classCallCheck(this, Buffer);
-
-
-        this.data = data;
-        this.gl = gl;
-        this.DataBuffer = this.createBuffer();
-        return this;
-    }
-
-    createClass(Buffer, [{
-        key: "createBuffer",
-        value: function createBuffer() {
-            var gl = this.gl;
-            var DataBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, DataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.data), gl.STATIC_DRAW);
-            return DataBuffer;
-        }
-    }, {
-        key: "bind",
-        value: function bind(buffer) {
-            var gl = this.gl;
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        }
-    }]);
-    return Buffer;
-}();
-
-// augment Sylvester some
-var Matrix = window$1.Matrix || function () {};
-Matrix.Translation = function (v) {
-    if (v.elements.length == 2) {
-        var r = Matrix.I(3);
-        r.elements[2][0] = v.elements[0];
-        r.elements[2][1] = v.elements[1];
-        return r;
-    }
-
-    if (v.elements.length == 3) {
-        var r = Matrix.I(4);
-        r.elements[0][3] = v.elements[0];
-        r.elements[1][3] = v.elements[1];
-        r.elements[2][3] = v.elements[2];
-        return r;
-    }
-
-    throw "Invalid length for Translation";
+var SThree = {
+    Renderer: Renderer,
+    Particle: Particle
 };
 
-Matrix.prototype.flatten = function () {
-    var result = [];
-    if (this.elements.length == 0) return [];
-
-    for (var j = 0; j < this.elements[0].length; j++) {
-        for (var i = 0; i < this.elements.length; i++) {
-            result.push(this.elements[i][j]);
-        }
-    }return result;
-};
-
-Matrix.prototype.ensure4x4 = function () {
-    if (this.elements.length == 4 && this.elements[0].length == 4) return this;
-
-    if (this.elements.length > 4 || this.elements[0].length > 4) return null;
-
-    for (var i = 0; i < this.elements.length; i++) {
-        for (var j = this.elements[i].length; j < 4; j++) {
-            if (i == j) this.elements[i].push(1);else this.elements[i].push(0);
-        }
-    }
-
-    for (var i = this.elements.length; i < 4; i++) {
-        if (i == 0) this.elements.push([1, 0, 0, 0]);else if (i == 1) this.elements.push([0, 1, 0, 0]);else if (i == 2) this.elements.push([0, 0, 1, 0]);else if (i == 3) this.elements.push([0, 0, 0, 1]);
-    }
-
-    return this;
-};
-
-Matrix.prototype.make3x3 = function () {
-    if (this.elements.length != 4 || this.elements[0].length != 4) return null;
-
-    return Matrix.create([[this.elements[0][0], this.elements[0][1], this.elements[0][2]], [this.elements[1][0], this.elements[1][1], this.elements[1][2]], [this.elements[2][0], this.elements[2][1], this.elements[2][2]]]);
-};
-
-var Vector = window$1.Vector || function () {};
-
-Vector.prototype.flatten = function () {
-    return this.elements;
-};
-
-//
-// gluPerspective
-//
-function makePerspective(fovy, aspect, znear, zfar) {
-    var ymax = znear * Math.tan(fovy * Math.PI / 360.0);
-    var ymin = -ymax;
-    var xmin = ymin * aspect;
-    var xmax = ymax * aspect;
-
-    return makeFrustum(xmin, xmax, ymin, ymax, znear, zfar);
-}
-
-//
-// glFrustum
-//
-function makeFrustum(left, right, bottom, top, znear, zfar) {
-    var X = 2 * znear / (right - left);
-    var Y = 2 * znear / (top - bottom);
-    var A = (right + left) / (right - left);
-    var B = (top + bottom) / (top - bottom);
-    var C = -(zfar + znear) / (zfar - znear);
-    var D = -2 * zfar * znear / (zfar - znear);
-
-    return $M([[X, 0, A, 0], [0, Y, B, 0], [0, 0, C, D], [0, 0, -1, 0]]);
-}
-
-//
-// Matrix utility functions
-//
-
-var mvMatrix = void 0;
-
-function loadIdentity() {
-    mvMatrix = Matrix.I(4);
-}
-
-function multMatrix(m) {
-    mvMatrix = mvMatrix.x(m);
-}
-
-function mvTranslate(v) {
-    multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
-}
-function setMatrixUniforms(gl, shaderProgram, perspectiveMatrix) {
-
-    var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-    gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
-
-    var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-    gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-}
-
-var Dicom$1 = function (_Container) {
-    inherits(Dicom, _Container);
-
-    function Dicom(img) {
-        var _ret;
-
-        classCallCheck(this, Dicom);
-
-        var _this = possibleConstructorReturn(this, (Dicom.__proto__ || Object.getPrototypeOf(Dicom)).call(this));
-
-        _this.width = 0;
-        _this.height = 0;
-        _this.points = {};
-        _this.window = {};
-        _this.filters = [];
-
-        _this.width = img.width;
-        _this.height = img.height;
-        _this.points = new Points$1(img);
-        _this.window = new Window$1();
-
-        return _ret = _this, possibleConstructorReturn(_this, _ret);
-    }
-
-    createClass(Dicom, [{
-        key: 'draw',
-        value: function draw(gl) {
-            this.gl = gl;
-            var SHADER = this.initShader(gl);
-            var BUFFER = this.initBuffer(gl);
-
-            BUFFER.VertiecsBuffer.bind(BUFFER.VertiecsBuffer.DataBuffer);
-            SHADER.attributes.aVertexPosition.pointer.call(SHADER.attributes.aVertexPosition, gl);
-            gl.enableVertexAttribArray('aVertexPosition');
-
-            BUFFER.ColorsBuffer.bind(BUFFER.ColorsBuffer.DataBuffer);
-
-            gl.enableVertexAttribArray('aVertexColor');
-
-            SHADER.attributes.aVertexColor.pointer.call(SHADER.attributes.aVertexColor, gl);
-            this.Uniform(SHADER.program);
-
-            this.showDraw();
-        }
-    }, {
-        key: 'initShader',
-        value: function initShader() {
-            var gl = this.gl;
-            var vertexSrc = Shader.getShaderElementById('shader-vs');
-            var fragmentSrc = Shader.getShaderElementById('shader-fs');
-
-            return new Shader(gl, vertexSrc, fragmentSrc);
-        }
-    }, {
-        key: 'initBuffer',
-        value: function initBuffer() {
-            var gl = this.gl;
-            var VertiecsBuffer = new Buffer(gl, this.points.vertiecs);
-            var ColorsBuffer = new Buffer(gl, this.points.colors);
-            return { VertiecsBuffer: VertiecsBuffer, ColorsBuffer: ColorsBuffer };
-        }
-    }, {
-        key: 'Uniform',
-        value: function Uniform(shaderProgram) {
-            var roate = this.width / this.height;
-            var perspectiveMatrix = makePerspective(45, roate, 0.0001, 1000000000.0);
-
-            loadIdentity();
-
-            mvTranslate([-0.0, 0.0, -1.5]);
-            setMatrixUniforms(this.gl, shaderProgram, perspectiveMatrix);
-        }
-    }, {
-        key: 'showDraw',
-        value: function showDraw() {
-            this.gl.drawArrays(this.gl.POINTS, 0, 262144);
-        }
-    }]);
-    return Dicom;
-}(Container);
+var PImage = SThree.Particle.PImage;
 
 var Series = function () {
     function Series(series) {
         classCallCheck(this, Series);
-
-        this.data = series;
+        this.data = {};
         this.dom_id = '';
         this.renderer = {};
-        this.stages = {};
-        this.loadStage();
+        this.images = [];
+
+        this.data = series;
 
         return this;
     }
@@ -1077,12 +787,12 @@ var Series = function () {
             var _loop = function _loop(i) {
                 var uri = JSON.parse(imgs[i].frames[0].uri);
                 var id = uri.lossless;
-                _this.stages[id] = new Container();
                 Service.ImageServer.get(id, function (img) {
-                    var dicom = new Dicom$1(img);
-                    _this.stages[id].addChild(dicom);
+                    var pimage = new PImage(img);
+                    _this.images.push(pimage);
+
                     if (i == 0) {
-                        _this.renderer.render(_this.stages[id]);
+                        _this.renderer.render(pimage);
                     }
                 });
             };
@@ -1093,7 +803,7 @@ var Series = function () {
         }
     }, {
         key: 'show',
-        value: function show(id) {
+        value: function show(index) {
             if (!id) {
                 var imgs = this.data.images;
                 var uri = JSON.parse(imgs[0].frames[0].uri);
@@ -1105,13 +815,19 @@ var Series = function () {
     }, {
         key: 'creatView',
         value: function creatView(id) {
+
             this.dom_id = id;
+
             var parentRenderer = document.getElementById(id);
-            this.renderer = new Renderer(parentRenderer.offsetWidth, parentRenderer.offsetHeight);
+
             if (!parentRenderer) {
                 throw new Error(id + ' is not exsit');
             }
+            this.renderer = new SThree.Renderer(parentRenderer.offsetWidth, parentRenderer.offsetHeight);
+
             parentRenderer.appendChild(this.renderer.view);
+
+            this.loadStage();
         }
     }]);
     return Series;
@@ -1187,9 +903,9 @@ var View = function () {
     function View(series, options) {
         classCallCheck(this, View);
 
+
         this.series = new Series(series);
         this.series.creatView('glcanvas');
-        this.series.loadStage();
         // this.options = options;
         // this._select = options && options.select || 0;
         // this._canvas = document.createElement('canvas');
@@ -1354,214 +1070,11 @@ var Series$2 = function () {
     return Series;
 }();
 
-var Buffer$1 = function () {
-
-    /**
-     * @param {object} gl
-     * @param {number[]} vertices
-     * @param {number[]} colors
-     */
-    function Buffer(gl, vertices, colors) {
-        classCallCheck(this, Buffer);
-
-        this.gl = gl;
-        this.vertices = vertices || [];
-        this.colors = colors || [];
-    }
-
-    createClass(Buffer, [{
-        key: "run",
-        value: function run() {
-
-            var gl = this.gl;
-            var VerticesBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, VerticesBuffer);
-            var vertices = this.vertices || [1.0, 1.0, 0.0, -1.0, 1.0, 0.0, 1.0, -1.0, 0.0, -1.0, -1.0, 0.0];
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-            var colors = this.colors || [1.0, 1.0, 1.0, 1.0, // white
-            1.0, 0.0, 0.0, 1.0, // red
-            0.0, 1.0, 0.0, 1.0, // green
-            0.0, 0.0, 1.0, 1.0 // blue
-            ];
-
-            var VerticesColorBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, VerticesColorBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
-            this.VerticesBuffer = VerticesBuffer;
-            this.VerticesColorBuffer = VerticesColorBuffer;
-        }
-    }]);
-    return Buffer;
-}();
-
-var Shader$1 = function () {
-
-    /**
-     * @param {Object} gl
-     * @param {String|Array.<string>} vertexSrc
-     * @param {String|Array.<string>} fragmentSrc 
-     */
-    function Shader(gl, vertexSrc, fragmentSrc) {
-        classCallCheck(this, Shader);
-
-        this.gl = gl;
-        this.vertexSrc = vertexSrc || '';
-        this.fragmentSrc = fragmentSrc || '';
-        return this;
-    }
-
-    createClass(Shader, [{
-        key: 'run',
-        value: function run() {
-
-            this.vertexShader = this.createShader(this.vertexSrc, 'vertex');
-            this.fragmentShader = this.createShader(this.fragmentSrc, 'fragment');
-            var gl = this.gl;
-            var shaderProgram = gl.createProgram();
-            gl.attachShader(shaderProgram, this.vertexShader);
-            gl.attachShader(shaderProgram, this.fragmentShader);
-            gl.linkProgram(shaderProgram);
-
-            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-                alert("Unable to initialize the shader program: " + gl.getProgramInfoLog(shader));
-            }
-
-            gl.useProgram(shaderProgram);
-
-            var vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-
-            gl.enableVertexAttribArray(vertexPositionAttribute);
-
-            var vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-            gl.enableVertexAttribArray(vertexColorAttribute);
-
-            this.shaderProgram = shaderProgram;
-            this.vertexPositionAttribute = vertexPositionAttribute;
-            this.vertexColorAttribute = vertexColorAttribute;
-
-            return this;
-        }
-
-        /**
-         * @param {string} source
-         * @param {string} [type = 'fragment'||'vertex']
-         */
-
-    }, {
-        key: 'createShader',
-        value: function createShader(source, type) {
-            var type_Shader = void 0;
-            if (type == 'fragment') {
-                type_Shader = this.gl.FRAGMENT_SHADER;
-            } else if (type == 'vertex') {
-                type_Shader = this.gl.VERTEX_SHADER;
-            } else {
-                return void 0;
-            }
-            var shader = this.gl.createShader(type_Shader);
-
-            this.gl.shaderSource(shader, source);
-            this.gl.compileShader(shader);
-            if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-                alert("An error occurred compiling the shaders: " + this.gl.getShaderInfoLog(shader));
-                return null;
-            }
-            return shader;
-        }
-    }]);
-    return Shader;
-}();
-
-Shader$1.getShaderElementById = function (id) {
-    var shaderScript = document.getElementById(id);
-
-    if (!shaderScript) {
-        return null;
-    }
-    var theSource = "";
-    var currentChild = shaderScript.firstChild;
-    while (currentChild) {
-        if (currentChild.nodeType == 3) {
-            theSource += currentChild.textContent;
-        }
-        currentChild = currentChild.nextSibling;
-    }
-    return theSource;
-};
-
-// WebGL的全局变量;
-var gl = void 0;
-
-var macl = {};
-
-
-
-function _initWebGL(canvas) {
-    window.gl = null;
-
-    try {
-        gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    } catch (e) {}
-
-    if (!gl) {
-        alert("WebGL初始化失败，可能是因为您的浏览器不支持。");
-        gl = null;
-    }
-    return gl;
-}
-
-function drawScene(shaderProgram, squareVerticesBuffer, squareVerticesColorBuffer, vertexPositionAttribute, vertexColorAttribute) {
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    var roate = macl.width / macl.height;
-    var perspectiveMatrix = makePerspective(45, roate, 0.000000001, 1000000000.0);
-
-    loadIdentity();
-
-    mvTranslate([-0.0, 0.0, -1.5]);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
-    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    setMatrixUniforms(gl, shaderProgram, perspectiveMatrix);
-
-    gl.drawArrays(gl.POINTS, 0, 262144);
-}
-
-var coreGL = function () {
-    function coreGL(options) {
-        classCallCheck(this, coreGL);
-
-        this._options = options;
-        this.id = options.id;
-    }
-
-    createClass(coreGL, [{
-        key: 'initWebGL',
-        value: function initWebGL() {
-            var root = document.getElementById(id);
-            var canvas = document.createElement('canvas');
-            canvas.width = root.offsetWidth;
-            macl.width = root.offsetWidth;
-            canvas.height = root.offsetHeight;
-            macl.height = root.offsetHeight;
-
-            root.appendChild(canvas);
-            gl = _initWebGL(canvas);
-        }
-    }]);
-    return coreGL;
-}();
-
 var handler_1234 = new Handler();
 
 handler_1234.on('onload', function (data) {
     if (data) {
+
         $("#aside")[0].appendChild(Aside(data.study.serieses));
         new View(data.study.serieses[0]);
     }
@@ -1571,6 +1084,6 @@ var main = {};
 
 return main;
 
-}(fetch,Emitter,window));
+}(fetch,Emitter));
 
-//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7In0=
+//# sourceMappingURL=data:application/json;charset=utf8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoianMvbWFpbi5qcyIsInNvdXJjZXMiOltdLCJzb3VyY2VzQ29udGVudCI6W10sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsifQ==

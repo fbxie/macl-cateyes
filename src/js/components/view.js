@@ -5,9 +5,9 @@ import config from '../../config.json';
 
 export default class View {
     constructor(series, options) {
+
         this.series = new Series(series);
         this.series.creatView('glcanvas');
-        this.series.loadStage();
         // this.options = options;
         // this._select = options && options.select || 0;
         // this._canvas = document.createElement('canvas');
